@@ -17,10 +17,7 @@ export async function pushToCloud(): Promise<void> {
 export async function pullFromCloud(): Promise<void> {
   if (!navigator.onLine) throw new Error('离线状态，无法下载');
 
-  const user = await db.users.toArray().then(a => a[0]);
-  if (!user) throw new Error('本地无用户，请先在个人中心创建');
-
-  const res = await fetch(`${API_BASE}/api/sync/pull?userId=${encodeURIComponent(user.id)}`);
+  const res = await fetch(`${API_BASE}/api/sync/pull`);
   if (!res.ok) throw new Error(`下载失败: ${res.status}`);
 
   const json = await res.json() as {
@@ -41,65 +38,50 @@ export async function pullFromCloud(): Promise<void> {
 
   const data = json.data;
 
-  // Merge user (cloud version wins for most fields, but keep local API key)
+  // Replace local user with cloud user (ensures same ID across devices)
   if (data.user) {
     const cloudUser = data.user as Record<string, unknown>;
-    const merged = {
-      ...user,
+    // Preserve local API key if one was already set
+    const localUser = await db.users.toArray().then(a => a[0]);
+    const localApiKey = (localUser as unknown as Record<string, unknown>)?.deepseekApiKey as string || '';
+    // Delete auto-generated local user, use cloud user instead
+    await db.users.clear();
+    await db.users.add({
       ...cloudUser,
-      // Keep local API key if not empty, otherwise use cloud
-      deepseekApiKey: (user as unknown as Record<string, unknown>).deepseekApiKey || cloudUser.deepseekApiKey || '',
+      deepseekApiKey: localApiKey || cloudUser.deepseekApiKey || '',
       updatedAt: new Date().toISOString(),
-    };
-    await db.users.put(merged as never);
+    } as never);
   }
 
-  // Merge plans
+  // Replace all plans (clear local, import cloud)
   if (data.plans) {
-    for (const plan of data.plans) {
-      const existing = await db.plans.get(plan.id as number);
-      if (!existing) await db.plans.put(plan as never);
-    }
+    await db.plans.clear();
+    for (const plan of data.plans) await db.plans.put(plan as never);
   }
 
-  // Merge plan exercises
   if (data.planExercises) {
-    for (const ex of data.planExercises) {
-      const existing = await db.planExercises.get(ex.id as number);
-      if (!existing) await db.planExercises.put(ex as never);
-    }
+    await db.planExercises.clear();
+    for (const ex of data.planExercises) await db.planExercises.put(ex as never);
   }
 
-  // Merge records
   if (data.records) {
-    for (const r of data.records) {
-      const existing = await db.records.get(r.id as number);
-      if (!existing) await db.records.put(r as never);
-    }
+    await db.records.clear();
+    for (const r of data.records) await db.records.put(r as never);
   }
 
-  // Merge record exercises
   if (data.recordExercises) {
-    for (const ex of data.recordExercises) {
-      const existing = await db.recordExercises.get(ex.id as number);
-      if (!existing) await db.recordExercises.put(ex as never);
-    }
+    await db.recordExercises.clear();
+    for (const ex of data.recordExercises) await db.recordExercises.put(ex as never);
   }
 
-  // Merge weight logs
   if (data.weightLogs) {
-    for (const log of data.weightLogs) {
-      const existing = await db.weightLogs.get(log.id as number);
-      if (!existing) await db.weightLogs.put(log as never);
-    }
+    await db.weightLogs.clear();
+    for (const log of data.weightLogs) await db.weightLogs.put(log as never);
   }
 
-  // Merge growth logs
   if (data.growthLogs) {
-    for (const log of data.growthLogs) {
-      const existing = await db.growthLogs.get(log.id as number);
-      if (!existing) await db.growthLogs.put(log as never);
-    }
+    await db.growthLogs.clear();
+    for (const log of data.growthLogs) await db.growthLogs.put(log as never);
   }
 }
 

@@ -124,14 +124,16 @@ router.post('/', async (c) => {
   });
 });
 
-// Download all cloud data for a user (used when switching devices)
+// Download cloud data (used when switching devices — no userId needed)
 router.get('/pull', async (c) => {
-  const userId = c.req.query('userId');
-  if (!userId) return c.json({ success: false, error: 'userId required' }, 400);
-
   const db = c.env.DB;
 
-  const user = await db.prepare('SELECT * FROM users WHERE id = ?').bind(userId).first();
+  // Get the first user in the database (device-agnostic)
+  const user = await db.prepare('SELECT * FROM users LIMIT 1').first();
+  if (!user) return c.json({ success: false, error: '云端无数据，请先上传' }, 404);
+
+  const userId = user.id as string;
+
   const plans = await db.prepare('SELECT * FROM plans WHERE user_id = ?').bind(userId).all();
   const records = await db.prepare('SELECT * FROM records WHERE user_id = ? ORDER BY date DESC').bind(userId).all();
   const weightLogs = await db.prepare('SELECT * FROM weight_logs WHERE user_id = ?').bind(userId).all();
