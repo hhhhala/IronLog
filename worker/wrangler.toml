@@ -8,15 +8,7 @@ binding = "DB"
 database_name = "ironlog-db"
 database_id = "4c12098f-d690-45a8-874d-1e454f47b657"
 
-[vars]
-DEEPSEEK_API_KEY = ""
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
-
 [env.production]
 d1_databases = [
   { binding = "DB", database_name = "ironlog-db", database_id = "4c12098f-d690-45a8-874d-1e454f47b657" },
 ]
-
-[env.production.vars]
-DEEPSEEK_API_KEY = ""
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"

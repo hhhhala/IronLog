@@ -3,6 +3,7 @@ import { useUserStore } from '@/stores/user-store';
 import type { UserProfile } from '@/types';
 import { showToast } from '@/components/shared/Toast';
 import { db } from '@/db/local-db';
+import { triggerSync } from '@/services/sync';
 
 const goalOptions: UserProfile['goal'][] = ['增肌', '减脂', '力量提升', '运动表现'];
 const expOptions: UserProfile['trainingExperience'][] = ['新手', '半年', '1年', '2年+'];
@@ -52,6 +53,8 @@ export default function Profile() {
         timerMode,
       });
       showToast('保存成功', 'success');
+      // Auto sync to cloud
+      triggerSync().catch(() => {});
     } catch (err) {
       console.error('Save user failed:', err);
       showToast('保存失败', 'error');

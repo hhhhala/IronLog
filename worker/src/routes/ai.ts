@@ -47,7 +47,7 @@ router.post('/chat', async (c) => {
 
   // Use API key from request first, then fall back to env var
   const apiKey = (requestApiKey && requestApiKey.length > 5) ? requestApiKey : c.env.DEEPSEEK_API_KEY;
-  const apiUrl = c.env.DEEPSEEK_API_URL;
+  const apiUrl = c.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
 
   // If no API key at all, let the client fall back to local mode
   if (!apiKey || apiKey.length < 5) {

@@ -4,6 +4,9 @@ import { useUserStore } from '@/stores/user-store';
 import { usePlanStore } from '@/stores/plan-store';
 import { db } from '@/db/local-db';
 import { calculateStreak, todayStr } from '@/utils/streak';
+import { pushToCloud, pullFromCloud } from '@/services/sync';
+import { useSyncStore } from '@/stores/sync-store';
+import { showToast } from '@/components/shared/Toast';
 import type { GrowthLog } from '@/types';
 
 export default function Dashboard() {
@@ -137,7 +140,7 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <div>
         <h2 className="text-white font-semibold text-lg mb-3">快捷操作</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <button
             onClick={() => navigate('/ai-coach')}
             className="bg-[#1a1a1a] rounded-xl p-3 text-center active:scale-95 transition-transform"
@@ -159,8 +162,80 @@ export default function Dashboard() {
             <span className="text-2xl block mb-1">📅</span>
             <span className="text-gray-300 text-xs">训练日历</span>
           </button>
+          <SyncButton />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Cloud sync button — upload/download data to/from D1 */
+function SyncButton() {
+  const [status, setStatus] = useState<'idle' | 'syncing' | 'done' | 'error'>('idle');
+  const [showMenu, setShowMenu] = useState(false);
+  const lastSync = useSyncStore((s) => s.lastSyncAt);
+
+  async function handlePush() {
+    setStatus('syncing'); setShowMenu(false);
+    try {
+      await pushToCloud();
+      setStatus('done');
+      showToast('数据已上传到云端 ✅', 'success');
+      setTimeout(() => setStatus('idle'), 2000);
+    } catch {
+      setStatus('error');
+      showToast('上传失败，请检查网络', 'error');
+      setTimeout(() => setStatus('idle'), 2000);
+    }
+  }
+
+  async function handlePull() {
+    setStatus('syncing'); setShowMenu(false);
+    try {
+      await pullFromCloud();
+      setStatus('done');
+      showToast('云端数据已下载 ✅', 'success');
+      // Reload to refresh all data
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err: unknown) {
+      setStatus('error');
+      const msg = err instanceof Error ? err.message : '下载失败';
+      showToast(msg, 'error');
+      setTimeout(() => setStatus('idle'), 2000);
+    }
+  }
+
+  const label =
+    status === 'syncing' ? '同步中...' :
+    status === 'done' ? '✅ 完成' :
+    status === 'error' ? '❌ 失败' :
+    lastSync ? '☁️ 云同步' : '☁️ 云同步';
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setShowMenu(!showMenu)}
+        disabled={status === 'syncing'}
+        className="bg-[#1a1a1a] rounded-xl p-3 text-center active:scale-95 transition-transform w-full"
+      >
+        <span className="text-2xl block mb-1">{status === 'syncing' ? '⏳' : '☁️'}</span>
+        <span className={`text-xs ${status === 'done' ? 'text-green-400' : status === 'error' ? 'text-red-400' : 'text-gray-300'}`}>
+          {label}
+        </span>
+      </button>
+      {showMenu && (
+        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-[#252525] rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
+          <button onClick={handlePush} className="block w-full text-left px-4 py-2.5 text-sm text-white hover:bg-amber-500/20 whitespace-nowrap">
+            📤 上传到云端
+          </button>
+          <button onClick={handlePull} className="block w-full text-left px-4 py-2.5 text-sm text-white hover:bg-amber-500/20 whitespace-nowrap">
+            📥 从云端下载
+          </button>
+          <button onClick={() => setShowMenu(false)} className="block w-full text-left px-4 py-2.5 text-xs text-gray-500 hover:bg-gray-700">
+            取消
+          </button>
+        </div>
+      )}
     </div>
   );
 }
