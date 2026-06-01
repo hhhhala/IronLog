@@ -57,6 +57,8 @@ export async function getOrCreateUser(): Promise<UserProfile> {
     goal: '增肌',
     trainingExperience: '新手',
     weeklyFrequency: 3,
+    deepseekApiKey: '',
+    timerMode: 'countup',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

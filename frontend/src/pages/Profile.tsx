@@ -25,6 +25,8 @@ export default function Profile() {
         goal: user.goal,
         trainingExperience: user.trainingExperience,
         weeklyFrequency: user.weeklyFrequency,
+        deepseekApiKey: user.deepseekApiKey || '',
+        timerMode: user.timerMode || 'countup',
       });
     }
   }, [user]);
@@ -181,6 +183,50 @@ export default function Profile() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* DeepSeek API Key */}
+        <div>
+          <label className="text-gray-400 text-sm block mb-1.5">
+            🔑 DeepSeek API Key
+            <span className="text-gray-600 ml-1">(可选，用于AI教练)</span>
+          </label>
+          <input
+            type="password"
+            value={(form as Record<string, unknown>).deepseekApiKey as string || ''}
+            onChange={(e) => setForm({ ...form, deepseekApiKey: e.target.value } as Partial<UserProfile>)}
+            placeholder="sk-..."
+            className="w-full bg-[#1a1a1a] text-white rounded-xl px-4 py-3 text-sm border border-gray-800 focus:border-amber-500 focus:outline-none font-mono"
+          />
+          <p className="text-gray-600 text-xs mt-1">在 deepseek.com 获取API Key，留空则使用本地模式</p>
+        </div>
+
+        {/* Timer Mode */}
+        <div>
+          <label className="text-gray-400 text-sm block mb-1.5">⏱️ 休息计时模式</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setForm({ ...form, timerMode: 'countup' } as Partial<UserProfile>)}
+              className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                (form as Record<string, unknown>).timerMode === 'countup' || !form.timerMode
+                  ? 'bg-amber-500 text-black'
+                  : 'bg-[#1a1a1a] text-gray-300'
+              }`}
+            >
+              ⬆ 正计时（默认）
+            </button>
+            <button
+              onClick={() => setForm({ ...form, timerMode: 'countdown' } as Partial<UserProfile>)}
+              className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                (form as Record<string, unknown>).timerMode === 'countdown'
+                  ? 'bg-amber-500 text-black'
+                  : 'bg-[#1a1a1a] text-gray-300'
+              }`}
+            >
+              ⬇ 倒计时
+            </button>
+          </div>
+          <p className="text-gray-600 text-xs mt-1">正计时：显示已休息多久 | 倒计时：设置时间倒数为零时震动提醒</p>
         </div>
 
         {/* Save Button */}

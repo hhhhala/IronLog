@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '@/stores/user-store';
 import { usePlanStore } from '@/stores/plan-store';
-import { generateLocalPlan, buildPlanPrompt, buildEditPrompt, buildUserContext } from '@/services/ai';
+import { generateLocalPlan, buildPlanPrompt, buildEditPrompt } from '@/services/ai';
 import { showToast } from '@/components/shared/Toast';
 import type { AIChatMessage, TrainingPlan } from '@/types';
 
@@ -14,58 +14,70 @@ export default function AICoach() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<TrainingPlan | null>(null);
+  const [usingRemote, setUsingRemote] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadUser();
+  }, [loadUser]);
+
+  useEffect(() => {
     if (user) {
+      const hasApiKey = !!(user.deepseekApiKey && user.deepseekApiKey.trim().length > 5);
+      setUsingRemote(hasApiKey);
       setMessages([
         {
           id: 'welcome',
           role: 'assistant',
-          content: `你好！我是 IronLog AI 教练 🤖\n\n我可以根据你的个人信息生成专属训练计划。你目前的目标是**${user.goal}**，每周训练**${user.weeklyFrequency}**天。\n\n你可以直接让我生成计划，也可以告诉我你的特殊需求，比如：\n• "给我生成一个增肌计划"\n• "我想重点练胸和背"\n• "增加一个飞鸟动作"`,
+          content: hasApiKey
+            ? `你好！我是 IronLog AI 教练 🤖\n\n🔗 **远程AI模式** — 使用 DeepSeek API\n\n我会根据你的个人资料生成科学训练计划：\n• 目标：**${user.goal}**\n• 训练频率：**${user.weeklyFrequency}天/周**\n\n直接告诉我你的需求，比如：\n• "给我生成一个增肌计划"\n• "我想重点练胸和背"\n• "把卧推改成史密斯卧推"`
+            : `你好！我是 IronLog AI 教练 🤖\n\n📦 **本地模式** — 未配置 DeepSeek API Key\n\n我会根据你的个人资料生成训练计划：\n• 目标：**${user.goal}**\n• 训练频率：**${user.weeklyFrequency}天/周**\n\n💡 去**个人中心**填写 API Key 即可切换远程 AI 模式（在 deepseek.com 获取）\n\n直接告诉我你的需求，我会用本地算法生成计划：`,
           timestamp: Date.now(),
         },
       ]);
     }
-  }, [user, loadUser]);
+  }, [user]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
-  async function callDeepSeek(prompt: string): Promise<string> {
-    // Try API proxy first
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
-      if (API_BASE) {
+  async function callDeepSeek(prompt: string): Promise<{ content: string; remote: boolean }> {
+    const apiKey = user?.deepseekApiKey?.trim();
+    const API_BASE = import.meta.env.VITE_API_URL || '';
+
+    if (apiKey && apiKey.length > 5) {
+      try {
         const res = await fetch(`${API_BASE}/api/ai/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
-              { role: 'system', content: '你是IronLog健身教练AI' },
               { role: 'user', content: prompt },
             ],
             userProfile: user,
+            apiKey: apiKey,
           }),
         });
         if (res.ok) {
           const data = await res.json();
-          return data.content || data.data?.content || '';
+          if (data.success && data.data?.content) {
+            return { content: data.data.content, remote: true };
+          }
         }
+      } catch {
+        // Fall through to local
       }
-    } catch {
-      // Fall back to local generation
     }
 
-    // Local fallback: generate locally
-    return JSON.stringify(generateLocalPlan(user!), null, 2);
+    // Local fallback
+    const localPlan = generateLocalPlan(user!);
+    const planText = JSON.stringify(localPlan, null, 2);
+    return { content: planText, remote: false };
   }
 
   function parsePlanFromResponse(content: string): TrainingPlan | null {
     try {
-      // Try to extract JSON
       const jsonMatch = content.match(/\{[\s\S]*"exercises"[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -87,10 +99,28 @@ export default function AICoach() {
           })),
         };
       }
-    } catch {
-      // Parse failed
-    }
+    } catch { /* parse failed */ }
     return null;
+  }
+
+  function formatPlanPreview(plan: TrainingPlan): string {
+    const lines: string[] = [];
+    lines.push(`📋 **${plan.name}**`);
+    lines.push(`目标：${plan.goal} | ${plan.cycleDays}天循环 | ${plan.exercises?.length || 0}个动作`);
+    lines.push('');
+
+    const days = [...new Set((plan.exercises || []).map((e) => e.dayNumber))].sort();
+    for (const day of days.slice(0, 3)) {
+      const dayExs = (plan.exercises || []).filter((e) => e.dayNumber === day);
+      lines.push(`**第${day}天**`);
+      dayExs.slice(0, 5).forEach((ex, i) => {
+        lines.push(`  ${i + 1}. ${ex.exerciseName} — ${ex.sets}组×${ex.reps}次`);
+      });
+      if (dayExs.length > 5) lines.push(`  ...还有${dayExs.length - 5}个动作`);
+      lines.push('');
+    }
+    if (days.length > 3) lines.push(`...共${days.length}个训练日`);
+    return lines.join('\n');
   }
 
   async function handleSend() {
@@ -108,32 +138,34 @@ export default function AICoach() {
     setLoading(true);
 
     try {
-      let prompt: string;
-      if (currentPlan) {
-        prompt = buildEditPrompt(user, currentPlan, text);
-      } else {
-        prompt = buildPlanPrompt(user, text);
-      }
+      const prompt = currentPlan
+        ? buildEditPrompt(user, currentPlan, text)
+        : buildPlanPrompt(user, text);
 
-      const response = await callDeepSeek(prompt);
-      const plan = parsePlanFromResponse(response);
+      const { content, remote } = await callDeepSeek(prompt);
+      const plan = parsePlanFromResponse(content);
+
+      let aiContent: string;
+      if (plan) {
+        const planPreview = formatPlanPreview(plan);
+        aiContent = remote
+          ? `🔗 远程AI生成\n\n${planPreview}\n\n你可以继续修改，或点击右上角**保存计划**。`
+          : `📦 本地生成（未使用远程AI）\n\n${planPreview}\n\n💡 去**个人中心**填写 DeepSeek API Key 获取更智能的计划。点击右上角**保存计划**即可使用。`;
+      } else {
+        aiContent = content.slice(0, 800) + (content.length > 800 ? '...' : '');
+      }
 
       const aiMsg: AIChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: plan
-          ? `已生成训练计划：**${plan.name}**\n\n${(plan.exercises || [])
-              .filter((e) => e.dayNumber === 1)
-              .map((e, i) => `${i + 1}. ${e.exerciseName} — ${e.sets}组×${e.reps}次`)
-              .join('\n')}\n\n你可以要求修改，或直接保存此计划。`
-          : response.slice(0, 500),
+        content: aiContent,
         planData: plan,
         timestamp: Date.now(),
       };
 
       if (plan) setCurrentPlan(plan);
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err) {
+    } catch {
       setMessages((prev) => [
         ...prev,
         {
@@ -162,8 +194,9 @@ export default function AICoach() {
       <div className="px-5 py-4 border-b border-gray-800 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-white">AI 教练</h1>
-          <p className="text-gray-400 text-xs">
-            {user?.goal ? `目标：${user.goal} | ${user.weeklyFrequency}天/周` : ''}
+          <p className={`text-xs ${usingRemote ? 'text-green-400' : 'text-amber-400'}`}>
+            {usingRemote ? '🔗 远程AI模式 (DeepSeek)' : '📦 本地模式'}
+            {user?.goal ? ` | ${user.goal} | ${user.weeklyFrequency}天/周` : ''}
           </p>
         </div>
         {currentPlan && (
@@ -171,7 +204,7 @@ export default function AICoach() {
             onClick={handleSavePlan}
             className="bg-amber-500 text-black font-semibold px-4 py-1.5 rounded-lg text-sm active:scale-95 transition-transform"
           >
-            保存计划
+            💾 保存计划
           </button>
         )}
       </div>
@@ -188,24 +221,6 @@ export default function AICoach() {
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              {msg.planData && (
-                <div className="mt-3 pt-3 border-t border-gray-700/50">
-                  <p className="text-xs text-amber-400 font-medium">📋 训练计划已生成</p>
-                  <div className="mt-2 space-y-1">
-                    {msg.planData.exercises
-                      ?.filter((e) => e.dayNumber === 1)
-                      .slice(0, 5)
-                      .map((e, i) => (
-                        <p key={i} className="text-xs text-gray-300">
-                          {e.exerciseName} {e.sets}×{e.reps}
-                        </p>
-                      ))}
-                    {msg.planData.exercises && msg.planData.exercises.filter((e) => e.dayNumber === 1).length > 5 && (
-                      <p className="text-xs text-gray-500">...更多动作</p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         ))}

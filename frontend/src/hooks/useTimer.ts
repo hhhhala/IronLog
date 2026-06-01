@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseTimerOptions {
-  duration: number;       // seconds
+  duration: number;       // seconds (for countdown)
+  mode?: 'countdown' | 'countup';
   autoStart?: boolean;
   onComplete?: () => void;
   vibrate?: boolean;
 }
 
-export function useTimer({ duration, autoStart = false, onComplete, vibrate = true }: UseTimerOptions) {
-  const [remaining, setRemaining] = useState(duration);
+export function useTimer({ duration, mode = 'countdown', autoStart = false, onComplete, vibrate = true }: UseTimerOptions) {
+  const [elapsed, setElapsed] = useState(0);
   const [isRunning, setIsRunning] = useState(autoStart);
   const intervalRef = useRef<number | null>(null);
   const onCompleteRef = useRef(onComplete);
@@ -32,12 +33,12 @@ export function useTimer({ duration, autoStart = false, onComplete, vibrate = tr
   const reset = useCallback((newDuration?: number) => {
     setIsRunning(false);
     clearTimer();
-    setRemaining(newDuration ?? duration);
-  }, [duration, clearTimer]);
+    setElapsed(0);
+  }, [clearTimer]);
 
   const skip = useCallback(() => {
     clearTimer();
-    setRemaining(0);
+    setElapsed(0);
     setIsRunning(false);
     onCompleteRef.current?.();
   }, [clearTimer]);
@@ -49,27 +50,30 @@ export function useTimer({ duration, autoStart = false, onComplete, vibrate = tr
     }
 
     intervalRef.current = window.setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
+      setElapsed((prev) => {
+        const next = prev + 1;
+        // Countdown complete?
+        if (mode === 'countdown' && next >= duration) {
           clearTimer();
           setIsRunning(false);
           if (vibrate && navigator.vibrate) {
             navigator.vibrate([200, 100, 200]);
           }
-          // Delay callback to avoid render issues
           setTimeout(() => onCompleteRef.current?.(), 0);
-          return 0;
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
 
     return clearTimer;
-  }, [isRunning, clearTimer, vibrate]);
+  }, [isRunning, clearTimer, mode, duration, vibrate]);
 
-  const progress = duration > 0 ? (duration - remaining) / duration : 0;
+  const isCountdown = mode === 'countdown';
+  const remaining = isCountdown ? Math.max(0, duration - elapsed) : elapsed;
+  const progress = isCountdown ? (duration > 0 ? elapsed / duration : 0) : 0;
 
   return {
+    elapsed,
     remaining,
     isRunning,
     progress,
@@ -78,6 +82,7 @@ export function useTimer({ duration, autoStart = false, onComplete, vibrate = tr
     reset,
     skip,
     formattedTime: formatTime(remaining),
+    mode,
   };
 }
 

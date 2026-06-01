@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTraining } from '@/hooks/useTraining';
 import { useTrainingStore } from '@/stores/training-store';
+import { useUserStore } from '@/stores/user-store';
 import { useTimer } from '@/hooks/useTimer';
 import { showToast } from '@/components/shared/Toast';
 import Modal from '@/components/shared/Modal';
@@ -11,12 +12,15 @@ export default function ActiveTraining() {
   const navigate = useNavigate();
   const { initTraining, logSet, finishWorkout, startRest, skipRest, reset } = useTraining();
   const { session, elapsedSeconds } = useTrainingStore();
+  const { user } = useUserStore();
   const [weightInput, setWeightInput] = useState('');
   const [repsInput, setRepsInput] = useState('');
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [savedRecordId, setSavedRecordId] = useState<number | null>(null);
   const initialized = useRef(false);
   const [vibrateMode, setVibrateMode] = useState(true);
+
+  const timerMode = user?.timerMode || 'countup';
 
   // Initialize session
   useEffect(() => {
@@ -26,21 +30,21 @@ export default function ActiveTraining() {
     }
   }, [planId, day, initTraining]);
 
-  // Rest timer
+  // Rest timer - supports both countup and countdown
   const currentExercise = session?.exercises[session?.currentExerciseIndex ?? 0];
   const {
     remaining: restRemaining,
-    isRunning: restRunning,
+    elapsed: restElapsed,
     start: startRestTimer,
     skip: skipRestTimer,
     reset: resetRestTimer,
     formattedTime: restFormatted,
   } = useTimer({
     duration: currentExercise?.restTime || 90,
+    mode: timerMode,
     autoStart: false,
     vibrate: vibrateMode,
     onComplete: () => {
-      // Auto transition back to exercising after rest
       useTrainingStore.getState().updateSession({ phase: 'exercising' });
     },
   });
@@ -146,10 +150,20 @@ export default function ActiveTraining() {
         {session.phase === 'resting' ? (
           /* Rest Timer View */
           <div className="flex flex-col items-center justify-center h-full space-y-6">
-            <p className="text-gray-400 text-sm">休息时间</p>
-            <div className="w-48 h-48 rounded-full border-4 border-amber-500 flex items-center justify-center pulse-ring">
+            <p className="text-gray-400 text-sm">
+              {timerMode === 'countdown' ? '休息倒计时' : '休息时间'}
+            </p>
+            <div className={`w-48 h-48 rounded-full border-4 flex items-center justify-center ${
+              timerMode === 'countdown' ? 'border-amber-500 pulse-ring' : 'border-green-500'
+            }`}>
               <span className="text-6xl font-bold text-white tabular-nums">{restFormatted}</span>
             </div>
+            {timerMode === 'countdown' && currentExercise && (
+              <p className="text-gray-500 text-xs">目标休息 {currentExercise.restTime}秒</p>
+            )}
+            {timerMode === 'countup' && currentExercise && (
+              <p className="text-gray-500 text-xs">建议休息 {currentExercise.restTime}秒</p>
+            )}
             <div className="flex gap-4">
               <button
                 onClick={() => {

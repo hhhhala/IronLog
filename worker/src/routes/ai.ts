@@ -39,22 +39,21 @@ const SYSTEM_PROMPT = `你是一个专业的健身教练AI助手，名为IronLog
 
 router.post('/chat', async (c) => {
   const body = await c.req.json();
-  const { messages, userProfile } = body;
+  const { messages, userProfile, apiKey: requestApiKey } = body;
 
   if (!messages || !Array.isArray(messages)) {
     return c.json({ success: false, error: 'messages array required' }, 400);
   }
 
-  const apiKey = c.env.DEEPSEEK_API_KEY;
+  // Use API key from request first, then fall back to env var
+  const apiKey = (requestApiKey && requestApiKey.length > 5) ? requestApiKey : c.env.DEEPSEEK_API_KEY;
   const apiUrl = c.env.DEEPSEEK_API_URL;
 
-  // If no API key configured, return a helpful message
-  if (!apiKey) {
+  // If no API key at all, let the client fall back to local mode
+  if (!apiKey || apiKey.length < 5) {
     return c.json({
-      success: true,
-      data: {
-        content: 'AI服务尚未配置API Key。请在Cloudflare Worker环境变量中设置 DEEPSEEK_API_KEY。\n\n当前可使用本地模式生成计划。',
-      },
+      success: false,
+      error: 'NO_API_KEY',
     });
   }
 

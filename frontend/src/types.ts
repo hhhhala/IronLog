@@ -8,6 +8,8 @@ export interface UserProfile {
   goal: '增肌' | '减脂' | '力量提升' | '运动表现';
   trainingExperience: '新手' | '半年' | '1年' | '2年+';
   weeklyFrequency: number;
+  deepseekApiKey: string;
+  timerMode: 'countdown' | 'countup';
   createdAt: string;
   updatedAt: string;
 }

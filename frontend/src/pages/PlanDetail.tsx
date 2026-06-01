@@ -183,8 +183,8 @@ export default function PlanDetail() {
         </div>
       )}
 
-      {/* Start Training */}
-      <div className="fixed bottom-0 left-0 right-0 p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}>
+      {/* Start Training - in scroll flow, not fixed */}
+      <div className="mt-6 mb-4">
         <button
           onClick={() => navigate(`/training/${plan.id}/${selectedDay}`)}
           className="w-full bg-amber-500 text-black font-bold py-3.5 rounded-2xl text-lg active:scale-[0.98] transition-transform shadow-lg shadow-amber-500/30"
