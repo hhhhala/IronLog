@@ -1,0 +1,19 @@
+{
+  "name": "ironlog-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute ironlog-db --file=schema.sql",
+    "db:local": "wrangler d1 execute ironlog-db --file=schema.sql --local"
+  },
+  "dependencies": {
+    "hono": "^4.7.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250528.0",
+    "wrangler": "^4.16.0"
+  }
+}

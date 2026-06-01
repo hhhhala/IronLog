@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* IronLog Design System - Dark theme, iPhone optimized */
+:root {
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-card: #1e1e1e;
+  --color-bg-elevated: #252525;
+  --color-accent: #f59e0b;
+  --color-accent-hover: #fbbf24;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a3a3a3;
+  --color-text-muted: #737373;
+  --color-border: #2a2a2a;
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --tab-bar-height: calc(56px + var(--safe-area-inset-bottom));
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* iOS momentum scrolling */
+.scroll-area {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbar */
+.scroll-area::-webkit-scrollbar {
+  display: none;
+}
+.scroll-area {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area utilities */
+.pt-safe {
+  padding-top: var(--safe-area-inset-top);
+}
+.pb-safe {
+  padding-bottom: var(--tab-bar-height);
+}
+.mt-safe {
+  margin-top: var(--safe-area-inset-top);
+}
+
+/* Bottom sheet animation */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Pulse for timer */
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+.pulse-ring {
+  animation: pulse-ring 2s infinite;
+}
+
+/* Custom utilities */
+.bg-primary { background-color: var(--color-bg-primary); }
+.bg-secondary { background-color: var(--color-bg-secondary); }
+.bg-card { background-color: var(--color-bg-card); }
+.bg-elevated { background-color: var(--color-bg-elevated); }
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-muted { color: var(--color-text-muted); }
+.border-custom { border-color: var(--color-border); }
