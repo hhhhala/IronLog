@@ -37,7 +37,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
       const weightLogs = await db.weightLogs.toArray();
       const growthLogs = await db.growthLogs.toArray();
 
-      const res = await fetch(`${apiBase}/sync`, {
+      const res = await fetch(`${apiBase}/api/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
