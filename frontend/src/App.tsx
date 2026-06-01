@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import ToastContainer from '@/components/shared/Toast';
+import UpdateAnnouncement from '@/components/shared/UpdateModal';
 import { initSyncListeners } from '@/services/sync';
 import { useEffect } from 'react';
 
@@ -24,6 +25,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastContainer />
+      <UpdateAnnouncement />
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
