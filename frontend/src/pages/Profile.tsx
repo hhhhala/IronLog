@@ -9,7 +9,16 @@ const expOptions: UserProfile['trainingExperience'][] = ['新手', '半年', '1�
 
 export default function Profile() {
   const { user, loadUser, saveUser, loading } = useUserStore();
-  const [form, setForm] = useState<Partial<UserProfile>>({});
+
+  // Separate state for each field — no type casting needed
+  const [nickname, setNickname] = useState('');
+  const [height, setHeight] = useState(170);
+  const [weight, setWeight] = useState(70);
+  const [goal, setGoal] = useState<UserProfile['goal']>('增肌');
+  const [trainingExperience, setTrainingExperience] = useState<UserProfile['trainingExperience']>('新手');
+  const [weeklyFrequency, setWeeklyFrequency] = useState(3);
+  const [deepseekApiKey, setDeepseekApiKey] = useState('');
+  const [timerMode, setTimerMode] = useState<UserProfile['timerMode']>('countup');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -18,25 +27,33 @@ export default function Profile() {
 
   useEffect(() => {
     if (user) {
-      setForm({
-        nickname: user.nickname,
-        height: user.height,
-        weight: user.weight,
-        goal: user.goal,
-        trainingExperience: user.trainingExperience,
-        weeklyFrequency: user.weeklyFrequency,
-        deepseekApiKey: user.deepseekApiKey || '',
-        timerMode: user.timerMode || 'countup',
-      });
+      setNickname(user.nickname || '');
+      setHeight(user.height || 170);
+      setWeight(user.weight || 70);
+      setGoal(user.goal || '增肌');
+      setTrainingExperience(user.trainingExperience || '新手');
+      setWeeklyFrequency(user.weeklyFrequency || 3);
+      setDeepseekApiKey(user.deepseekApiKey || '');
+      setTimerMode(user.timerMode || 'countup');
     }
   }, [user]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await saveUser(form);
+      await saveUser({
+        nickname,
+        height,
+        weight,
+        goal,
+        trainingExperience,
+        weeklyFrequency,
+        deepseekApiKey: deepseekApiKey.trim(),
+        timerMode,
+      });
       showToast('保存成功', 'success');
-    } catch {
+    } catch (err) {
+      console.error('Save user failed:', err);
       showToast('保存失败', 'error');
     } finally {
       setSaving(false);
@@ -93,8 +110,8 @@ export default function Profile() {
           <label className="text-gray-400 text-sm block mb-1.5">昵称</label>
           <input
             type="text"
-            value={form.nickname || ''}
-            onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
             placeholder="输入昵称"
             className="w-full bg-[#1a1a1a] text-white rounded-xl px-4 py-3 text-sm border border-gray-800 focus:border-amber-500 focus:outline-none"
           />
@@ -106,8 +123,8 @@ export default function Profile() {
             <label className="text-gray-400 text-sm block mb-1.5">身高 (cm)</label>
             <input
               type="number"
-              value={form.height || ''}
-              onChange={(e) => setForm({ ...form, height: Number(e.target.value) })}
+              value={height || ''}
+              onChange={(e) => setHeight(Number(e.target.value))}
               className="w-full bg-[#1a1a1a] text-white rounded-xl px-4 py-3 text-sm border border-gray-800 focus:border-amber-500 focus:outline-none"
             />
           </div>
@@ -115,8 +132,8 @@ export default function Profile() {
             <label className="text-gray-400 text-sm block mb-1.5">体重 (kg)</label>
             <input
               type="number"
-              value={form.weight || ''}
-              onChange={(e) => setForm({ ...form, weight: Number(e.target.value) })}
+              value={weight || ''}
+              onChange={(e) => setWeight(Number(e.target.value))}
               className="w-full bg-[#1a1a1a] text-white rounded-xl px-4 py-3 text-sm border border-gray-800 focus:border-amber-500 focus:outline-none"
             />
           </div>
@@ -129,9 +146,9 @@ export default function Profile() {
             {[2, 3, 4, 5, 6].map((n) => (
               <button
                 key={n}
-                onClick={() => setForm({ ...form, weeklyFrequency: n })}
+                onClick={() => setWeeklyFrequency(n)}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  form.weeklyFrequency === n
+                  weeklyFrequency === n
                     ? 'bg-amber-500 text-black'
                     : 'bg-[#1a1a1a] text-gray-300'
                 }`}
@@ -149,9 +166,9 @@ export default function Profile() {
             {goalOptions.map((g) => (
               <button
                 key={g}
-                onClick={() => setForm({ ...form, goal: g })}
+                onClick={() => setGoal(g)}
                 className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  form.goal === g
+                  goal === g
                     ? 'bg-amber-500 text-black'
                     : 'bg-[#1a1a1a] text-gray-300'
                 }`}
@@ -172,9 +189,9 @@ export default function Profile() {
             {expOptions.map((e) => (
               <button
                 key={e}
-                onClick={() => setForm({ ...form, trainingExperience: e })}
+                onClick={() => setTrainingExperience(e)}
                 className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  form.trainingExperience === e
+                  trainingExperience === e
                     ? 'bg-amber-500 text-black'
                     : 'bg-[#1a1a1a] text-gray-300'
                 }`}
@@ -192,13 +209,13 @@ export default function Profile() {
             <span className="text-gray-600 ml-1">(可选，用于AI教练)</span>
           </label>
           <input
-            type="password"
-            value={(form as Record<string, unknown>).deepseekApiKey as string || ''}
-            onChange={(e) => setForm({ ...form, deepseekApiKey: e.target.value } as Partial<UserProfile>)}
+            type="text"
+            value={deepseekApiKey}
+            onChange={(e) => setDeepseekApiKey(e.target.value)}
             placeholder="sk-..."
             className="w-full bg-[#1a1a1a] text-white rounded-xl px-4 py-3 text-sm border border-gray-800 focus:border-amber-500 focus:outline-none font-mono"
           />
-          <p className="text-gray-600 text-xs mt-1">在 deepseek.com 获取API Key，留空则使用本地模式</p>
+          <p className="text-gray-600 text-xs mt-1">在 platform.deepseek.com 获取 Key，留空则AI使用本地模式</p>
         </div>
 
         {/* Timer Mode */}
@@ -206,9 +223,9 @@ export default function Profile() {
           <label className="text-gray-400 text-sm block mb-1.5">⏱️ 休息计时模式</label>
           <div className="grid grid-cols-2 gap-2">
             <button
-              onClick={() => setForm({ ...form, timerMode: 'countup' } as Partial<UserProfile>)}
+              onClick={() => setTimerMode('countup')}
               className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                (form as Record<string, unknown>).timerMode === 'countup' || !form.timerMode
+                timerMode === 'countup'
                   ? 'bg-amber-500 text-black'
                   : 'bg-[#1a1a1a] text-gray-300'
               }`}
@@ -216,9 +233,9 @@ export default function Profile() {
               ⬆ 正计时（默认）
             </button>
             <button
-              onClick={() => setForm({ ...form, timerMode: 'countdown' } as Partial<UserProfile>)}
+              onClick={() => setTimerMode('countdown')}
               className={`py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                (form as Record<string, unknown>).timerMode === 'countdown'
+                timerMode === 'countdown'
                   ? 'bg-amber-500 text-black'
                   : 'bg-[#1a1a1a] text-gray-300'
               }`}
@@ -226,7 +243,7 @@ export default function Profile() {
               ⬇ 倒计时
             </button>
           </div>
-          <p className="text-gray-600 text-xs mt-1">正计时：显示已休息多久 | 倒计时：设置时间倒数为零时震动提醒</p>
+          <p className="text-gray-600 text-xs mt-1">正计时：显示已休息时长 | 倒计时：归零震动提醒</p>
         </div>
 
         {/* Save Button */}
