@@ -8,6 +8,7 @@ import type {
   WeightLog,
   GrowthLog,
   SyncQueueItem,
+  ChatSession,
 } from '@/types';
 
 class IronLogDB extends Dexie {
@@ -19,6 +20,7 @@ class IronLogDB extends Dexie {
   weightLogs!: Table<WeightLog, number>;
   growthLogs!: Table<GrowthLog, number>;
   syncQueue!: Table<SyncQueueItem, number>;
+  chatSessions!: Table<ChatSession, number>;
 
   constructor() {
     super('IronLogDB');
@@ -31,6 +33,7 @@ class IronLogDB extends Dexie {
       weightLogs: '++id, userId, date',
       growthLogs: '++id, userId, date',
       syncQueue: '++id, tableName, timestamp',
+      chatSessions: '++id, updatedAt',
     });
 
     // Hooks for auto-generated UUID on user creation

@@ -120,6 +120,15 @@ export interface TrainingSession {
   restDuration: number;
 }
 
+// Chat session types
+export interface ChatSession {
+  id?: number;
+  title: string;
+  messages: string;        // JSON-serialized AIChatMessage[]
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Sync types
 export type SyncStatus = 'idle' | 'syncing' | 'error' | 'offline';
 
