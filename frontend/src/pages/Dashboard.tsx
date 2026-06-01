@@ -177,32 +177,19 @@ function SyncButton() {
 
   async function handlePush() {
     setStatus('syncing'); setShowMenu(false);
-    try {
-      await pushToCloud();
-      setStatus('done');
-      showToast('数据已上传到云端 ✅', 'success');
-      setTimeout(() => setStatus('idle'), 2000);
-    } catch {
-      setStatus('error');
-      showToast('上传失败，请检查网络', 'error');
-      setTimeout(() => setStatus('idle'), 2000);
-    }
+    showToast('☁️ 后台上传中...', 'info');
+    // Fire and forget — user can keep using app
+    pushToCloud()
+      .then(() => { setStatus('done'); showToast('✅ 已上传到云端', 'success'); setTimeout(() => setStatus('idle'), 2000); })
+      .catch(() => { setStatus('error'); showToast('上传失败', 'error'); setTimeout(() => setStatus('idle'), 2000); });
   }
 
   async function handlePull() {
     setStatus('syncing'); setShowMenu(false);
-    try {
-      await pullFromCloud();
-      setStatus('done');
-      showToast('云端数据已下载 ✅', 'success');
-      // Reload to refresh all data
-      setTimeout(() => window.location.reload(), 1000);
-    } catch (err: unknown) {
-      setStatus('error');
-      const msg = err instanceof Error ? err.message : '下载失败';
-      showToast(msg, 'error');
-      setTimeout(() => setStatus('idle'), 2000);
-    }
+    showToast('☁️ 后台下载中...', 'info');
+    pullFromCloud()
+      .then(() => { setStatus('done'); showToast('✅ 已下载，即将刷新', 'success'); setTimeout(() => window.location.reload(), 1500); })
+      .catch((err: unknown) => { setStatus('error'); showToast(err instanceof Error ? err.message : '下载失败', 'error'); setTimeout(() => setStatus('idle'), 2000); });
   }
 
   const label =
