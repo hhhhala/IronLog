@@ -8,14 +8,9 @@ type Bindings = {
 
 const router = new Hono<{ Bindings: Bindings }>();
 
-const SYSTEM_PROMPT = `你是一个专业的健身教练AI助手，名为IronLog Coach。
+const PLAN_PROMPT = `你是一个专业的健身教练AI助手，名为IronLog Coach。根据用户的身体数据和训练目标，生成科学的训练计划。
 
-你的能力：
-1. 生成训练计划 — 根据用户的身体数据和目标，生成科学的计划
-2. 健身问答 — 回答训练技巧、饮食建议、动作规范等问题
-3. 日常聊天 — 以健身教练的身份友好交流
-
-当用户要求生成或修改训练计划时，请按以下JSON格式返回：
+请按以下JSON格式返回训练计划：
 {
   "name": "计划名称",
   "goal": "训练目标",
@@ -39,13 +34,20 @@ const SYSTEM_PROMPT = `你是一个专业的健身教练AI助手，名为IronLog
 - 组数范围3-5组，次数范围6-15次
 - 休息时间60-120秒
 - 每个训练日包含4-6个动作
-- 计划应科学合理
-- 生成计划时：先简短文字说明，然后提供JSON格式的计划
-- 日常聊天时：用中文友好回复，不需要输出JSON`;
+- 先简短文字说明，然后提供JSON格式的计划`;
+
+const CHAT_PROMPT = `你是一个友好的健身教练AI助手，名为IronLog Coach。你的职责是回答健身相关问题、提供训练建议，以及与用户日常聊天。
+
+回复要求：
+- 用中文友好回复
+- 语气亲切自然，像个真实的教练
+- 如果用户问健身相关问题，给出专业建议
+- 如果用户闲聊，就正常聊天
+- 不需要输出JSON，除非用户明确要求生成计划`;
 
 router.post('/chat', async (c) => {
   const body = await c.req.json();
-  const { messages, userProfile, apiKey: requestApiKey } = body;
+  const { messages, userProfile, apiKey: requestApiKey, isPlanRequest } = body;
 
   if (!messages || !Array.isArray(messages)) {
     return c.json({ success: false, error: 'messages array required' }, 400);
@@ -64,6 +66,16 @@ router.post('/chat', async (c) => {
   }
 
   try {
+    // Build messages: filter out frontend system messages, add profile context for plans
+    const userMessages = messages.filter((m: { role: string }) => m.role !== 'system');
+    if (isPlanRequest && userProfile) {
+      const profileText = `用户资料：身高${userProfile.height}cm 体重${userProfile.weight}kg 目标${userProfile.goal} 经验${userProfile.trainingExperience} 每周${userProfile.weeklyFrequency}天`;
+      userMessages[0] = {
+        ...userMessages[0],
+        content: `${profileText}\n\n用户说："${userMessages[0]?.content || ''}"`,
+      };
+    }
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -73,10 +85,10 @@ router.post('/chat', async (c) => {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          ...messages.filter((m: { role: string }) => m.role !== 'system'),
+          { role: 'system', content: isPlanRequest ? PLAN_PROMPT : CHAT_PROMPT },
+          ...userMessages,
         ],
-        temperature: 0.7,
+        temperature: isPlanRequest ? 0.7 : 0.9,
         max_tokens: 4096,
       }),
     });

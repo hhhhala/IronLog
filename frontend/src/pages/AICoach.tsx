@@ -102,7 +102,7 @@ export default function AICoach() {
   }
 
   // 通过 Worker 代理调用 DeepSeek API（唯一路径）
-  async function callAI(prompt: string): Promise<string> {
+  async function callAI(userText: string, isPlanRequest: boolean): Promise<string> {
     const API_BASE = import.meta.env.VITE_API_URL || '';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
@@ -112,9 +112,10 @@ export default function AICoach() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: prompt }],
+          messages: [{ role: 'user', content: userText }],
           userProfile: user,
           apiKey: apiKey.trim(),
+          isPlanRequest,
         }),
         signal: controller.signal,
       });
@@ -130,13 +131,8 @@ export default function AICoach() {
     }
   }
 
-  function buildPrompt(userText: string): string {
-    const profileInfo = `用户资料：身高${user?.height}cm 体重${user?.weight}kg 目标${user?.goal} 经验${user?.trainingExperience} 每周${user?.weeklyFrequency}天`;
-    const isPlanRequest = /计划|训练|生成|创建|增肌|减脂|动作|组|次|修改|改成|增加|删除/.test(userText);
-    if (isPlanRequest) {
-      return `你是专业健身教练。${profileInfo}\n\n用户说："${userText}"\n\n请生成训练计划。用JSON格式：{"name":"计划名","goal":"目标","cycleDays":5,"exercises":[{"dayNumber":1,"exerciseName":"动作","sets":4,"reps":8,"targetWeight":0,"restTime":90,"sortOrder":0,"notes":""}]}\n\n先文字说明再JSON。`;
-    }
-    return `你是健身教练AI，叫IronLog Coach。${profileInfo}\n\n用户说："${userText}"\n\n用中文友好回复。`;
+  function isPlanRequest(text: string): boolean {
+    return /计划|训练|生成|创建|增肌|减脂|动作|组|次|修改|改成|增加|删除/.test(text);
   }
 
   function parsePlanFromResponse(content: string): TrainingPlan | null {
@@ -191,8 +187,6 @@ export default function AICoach() {
     setLoading(true);
 
     try {
-      const prompt = buildPrompt(text);
-
       if (!hasApiKey) {
         setMessages([...newMsgs, {
           id: (Date.now() + 1).toString(),
@@ -206,7 +200,7 @@ export default function AICoach() {
 
       let content: string;
       try {
-        content = await callAI(prompt);
+        content = await callAI(text, isPlanRequest(text));
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : '未知错误';
         setMessages([...newMsgs, {
