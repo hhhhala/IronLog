@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '@/stores/user-store';
 import { usePlanStore } from '@/stores/plan-store';
 import { db } from '@/db/local-db';
-import { generateLocalPlan } from '@/services/ai';
 import { showToast } from '@/components/shared/Toast';
 import type { AIChatMessage, TrainingPlan, ChatSession } from '@/types';
 
@@ -102,73 +101,33 @@ export default function AICoach() {
     setApiKey(key.trim());
   }
 
-  // 直接调用 DeepSeek API，绕过 Worker 代理（国内访问更快）
-  async function callDeepSeekDirect(prompt: string): Promise<string> {
-    const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
-    const systemPrompt = `你是一个专业的健身教练AI助手，名为IronLog Coach。根据用户的身体数据和训练目标，生成科学的训练计划。
-
-请始终以JSON格式返回训练计划，格式如下：
-{"name":"计划名","goal":"目标","cycleDays":5,"exercises":[{"dayNumber":1,"exerciseName":"动作","sets":4,"reps":8,"targetWeight":0,"restTime":90,"sortOrder":0,"notes":""}]}
-
-重要规则：
-- 动作名称使用中文（如"卧推"、"深蹲"、"引体向上"等）
-- 组数范围3-5组，次数范围6-15次
-- 休息时间60-120秒
-- 每个训练日包含4-6个动作
-- 计划应科学合理
-- 每次回复先简短文字说明，然后提供JSON格式的计划`;
-
+  // 通过 Worker 代理调用 DeepSeek API（唯一路径）
+  async function callAI(prompt: string): Promise<string> {
+    const API_BASE = import.meta.env.VITE_API_URL || '';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const res = await fetch(DEEPSEEK_URL, {
+      const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 4096,
+          messages: [{ role: 'user', content: prompt }],
+          userProfile: user,
+          apiKey: apiKey.trim(),
         }),
         signal: controller.signal,
       });
-      clearTimeout(timeout);
 
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        throw new Error(`DeepSeek API ${res.status}: ${errText}`);
+      const data = await res.json() as { success: boolean; data?: { content?: string }; error?: string };
+      if (!res.ok || !data.success) {
+        throw new Error(data?.error || `请求失败 (${res.status})`);
       }
-
-      const data = await res.json();
-      return data.choices?.[0]?.message?.content || '';
+      if (!data.data?.content) throw new Error('AI 返回内容为空');
+      return data.data.content;
     } finally {
       clearTimeout(timeout);
     }
-  }
-
-  // 通过 Worker 代理调用（备选方案）
-  async function callRemoteAI(prompt: string): Promise<string> {
-    const API_BASE = import.meta.env.VITE_API_URL || '';
-    const res = await fetch(`${API_BASE}/api/ai/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: [{ role: 'user', content: prompt }],
-        userProfile: user,
-        apiKey: apiKey.trim(),
-      }),
-    });
-    if (!res.ok) throw new Error('API call failed');
-    const data = await res.json() as { success: boolean; data?: { content?: string }; error?: string };
-    if (!data.success || !data.data?.content) throw new Error(data.error || 'No content');
-    return data.data.content;
   }
 
   function buildPrompt(userText: string): string {
@@ -233,34 +192,43 @@ export default function AICoach() {
 
     try {
       const prompt = buildPrompt(text);
-      let content: string;
-      let remote = false;
 
-      if (hasApiKey) {
-        // 优先直连 DeepSeek（国内访问更快），失败则走 Worker 代理，再失败则本地兜底
-        try { content = await callDeepSeekDirect(prompt); remote = true; }
-        catch {
-          try { content = await callRemoteAI(prompt); remote = true; }
-          catch { content = `⚠️ 远程AI失败，已切换为本地计划\n\n${JSON.stringify(generateLocalPlan(user), null, 2)}`; }
-        }
-      } else {
-        content = `📦 本地模式\n\n${JSON.stringify(generateLocalPlan(user), null, 2)}`;
+      if (!hasApiKey) {
+        setMessages([...newMsgs, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: '🔑 请先设置 DeepSeek API Key\n\n点击右上角 🔑 按钮，输入你的 DeepSeek API Key 后才能使用 AI 教练。\n\n（可在 https://platform.deepseek.com 获取）',
+          timestamp: Date.now(),
+        }]);
+        await saveCurrentSession([...newMsgs, { id: (Date.now() + 1).toString(), role: 'assistant', content: '', timestamp: Date.now() }], sid);
+        return;
+      }
+
+      let content: string;
+      try {
+        content = await callAI(prompt);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : '未知错误';
+        setMessages([...newMsgs, {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: `❌ AI 连接失败\n\n${errMsg}\n\n请检查：\n1. DeepSeek API Key 是否正确\n2. 网络连接是否正常\n3. Worker 服务是否已部署`,
+          timestamp: Date.now(),
+        }]);
+        await saveCurrentSession(newMsgs, sid);
+        return;
       }
 
       const plan = parsePlanFromResponse(content);
-      let display = plan
-        ? (remote ? '🤖 DeepSeek AI\n\n' : '📦 本地\n\n') + formatPlan(plan)
-        : (remote ? '🤖 ' : '📦 ') + (content.length > 1000 ? content.slice(0, 1000) + '...' : content);
+      const display = plan
+        ? `🤖 AI 教练\n\n${formatPlan(plan)}`
+        : content.length > 1000 ? content.slice(0, 1000) + '...' : content;
 
       const aiMsg: AIChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: display, planData: plan, timestamp: Date.now() };
       const finalMsgs = [...newMsgs, aiMsg];
       setMessages(finalMsgs);
       if (plan) setCurrentPlan(plan);
-
-      // Save to DB
       await saveCurrentSession(finalMsgs, sid);
-    } catch {
-      setMessages([...newMsgs, { id: (Date.now() + 1).toString(), role: 'assistant', content: '出错了，请重试', timestamp: Date.now() }]);
     } finally {
       setLoading(false);
     }

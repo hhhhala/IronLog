@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.5.0';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -10,21 +10,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2026-06-09',
+    changes: [
+      'AI 教练去掉本地计划兜底，失败时显示具体错误信息（API Key 错误 / 网络异常等）',
+      '未设置 API Key 时提示引导配置，不再生成默认计划',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-06-09',
     changes: [
       '云端同步全面升级：训练计划、训练记录、DeepSeek API Key 均可跨设备同步',
       '修复下载同步时字段映射错误，确保数据完整',
-      '优化：每次功能更新后会弹窗展示更新内容',
-    ],
-  },
-  {
-    version: '1.3.0',
-    date: '2026-06-09',
-    changes: [
-      '新增中文版 README 及项目说明文档 (CLAUDE.md)',
-      '优化 AI 教练网络请求：浏览器直连 DeepSeek API，不再绕道 Cloudflare Worker 代理',
-      '新增 60 秒超时自动降级：直连失败 → Worker 代理 → 本地计划，三级兜底',
     ],
   },
   {
