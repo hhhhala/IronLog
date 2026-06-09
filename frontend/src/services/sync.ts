@@ -43,7 +43,7 @@ export async function pullFromCloud(): Promise<void> {
     const cloudUser = data.user as Record<string, unknown>;
     // Preserve local API key if cloud doesn't have one (e.g. before migration)
     const localUser = await db.users.toArray().then(a => a[0]);
-    const localApiKey = (localUser as Record<string, unknown>)?.deepseekApiKey as string || '';
+    const localApiKey = localUser?.deepseekApiKey || '';
 
     // Map snake_case DB fields to camelCase TS types
     const mappedUser = {
