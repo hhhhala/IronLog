@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.5.1';
+export const APP_VERSION = '1.6.0';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -10,11 +10,11 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.5.1',
+    version: '1.6.0',
     date: '2026-06-09',
     changes: [
+      '修复云端下载后训练计划和记录不显示的问题（snake_case → camelCase 字段映射）',
       '修复云端下载覆盖本地 API Key 的问题',
-      '新增数据库迁移脚本，补充 deepseek_api_key 列',
     ],
   },
   {

@@ -38,58 +38,147 @@ export async function pullFromCloud(): Promise<void> {
 
   const data = json.data;
 
-  // Replace local user with cloud user (ensures same ID across devices)
+  // Helper: map snake_case D1 row to camelCase TS type
+  function mapUser(u: Record<string, unknown>) {
+    return {
+      id: u.id as string,
+      nickname: u.nickname as string || '',
+      height: u.height as number || 170,
+      weight: u.weight as number || 70,
+      goal: u.goal as string || '增肌',
+      trainingExperience: u.training_experience as string || '新手',
+      weeklyFrequency: u.weekly_frequency as number || 3,
+      deepseekApiKey: (u.deepseek_api_key as string) || '',
+      timerMode: u.timer_mode as string || 'countup',
+      createdAt: u.created_at as string || new Date().toISOString(),
+      updatedAt: u.updated_at as string || new Date().toISOString(),
+    };
+  }
+
+  function mapPlan(p: Record<string, unknown>) {
+    return {
+      id: p.id as number,
+      userId: p.user_id as string,
+      name: p.name as string || '',
+      goal: p.goal as string || '',
+      cycleDays: p.cycle_days as number || 3,
+      isActive: p.is_active === 1 || p.is_active === true,
+      createdAt: p.created_at as string || '',
+      updatedAt: p.updated_at as string || '',
+    };
+  }
+
+  function mapPlanExercise(e: Record<string, unknown>) {
+    return {
+      id: e.id as number,
+      planId: e.plan_id as number,
+      dayNumber: e.day_number as number || 1,
+      exerciseName: e.exercise_name as string || '',
+      sets: e.sets as number || 3,
+      reps: e.reps as number || 10,
+      targetWeight: e.target_weight as number || 0,
+      restTime: e.rest_time as number || 90,
+      sortOrder: e.sort_order as number || 0,
+      notes: e.notes as string || '',
+    };
+  }
+
+  function mapRecord(r: Record<string, unknown>) {
+    return {
+      id: r.id as number,
+      userId: r.user_id as string,
+      planId: r.plan_id as number | undefined,
+      date: r.date as string || '',
+      totalDuration: r.total_duration as number || 0,
+      totalSets: r.total_sets as number || 0,
+      totalReps: r.total_reps as number || 0,
+      totalVolume: r.total_volume as number || 0,
+      estimatedCalories: r.estimated_calories as number || 0,
+      growthPoints: r.growth_points as number || 0,
+      notes: r.notes as string || '',
+      createdAt: r.created_at as string || '',
+    };
+  }
+
+  function mapRecordExercise(e: Record<string, unknown>) {
+    return {
+      id: e.id as number,
+      recordId: e.record_id as number,
+      exerciseName: e.exercise_name as string || '',
+      setNumber: e.set_number as number || 1,
+      weight: e.weight as number || 0,
+      reps: e.reps as number || 0,
+      isPR: e.is_pr === 1 || e.is_pr === true,
+    };
+  }
+
+  function mapWeightLog(w: Record<string, unknown>) {
+    return {
+      id: w.id as number,
+      userId: w.user_id as string,
+      date: w.date as string || '',
+      weight: w.weight as number || 0,
+      createdAt: w.created_at as string || '',
+    };
+  }
+
+  function mapGrowthLog(g: Record<string, unknown>) {
+    return {
+      id: g.id as number,
+      userId: g.user_id as string,
+      date: g.date as string || '',
+      points: g.points as number || 0,
+      reason: g.reason as string || '',
+      relatedRecordId: g.related_record_id as number | undefined,
+      createdAt: g.created_at as string || '',
+    };
+  }
+
+  // Replace local data with cloud data
   if (data.user) {
-    const cloudUser = data.user as Record<string, unknown>;
-    // Preserve local API key if cloud doesn't have one (e.g. before migration)
-    const localUser = await db.users.toArray().then(a => a[0]);
-    const localApiKey = localUser?.deepseekApiKey || '';
-
-    // Map snake_case DB fields to camelCase TS types
-    const mappedUser = {
-      id: cloudUser.id as string,
-      nickname: cloudUser.nickname as string || '',
-      height: cloudUser.height as number || 170,
-      weight: cloudUser.weight as number || 70,
-      goal: cloudUser.goal as string || '增肌',
-      trainingExperience: cloudUser.training_experience as string || '新手',
-      weeklyFrequency: cloudUser.weekly_frequency as number || 3,
-      deepseekApiKey: (cloudUser.deepseek_api_key as string) || localApiKey || '',
-      updatedAt: cloudUser.updated_at as string || new Date().toISOString(),
-    } as never;
+    const mappedUser = mapUser(data.user);
+    const localAll = await db.users.toArray();
+    const localKey = localAll[0]?.deepseekApiKey || '';
+    const cloudKey = mappedUser.deepseekApiKey;
+    mappedUser.deepseekApiKey = cloudKey || localKey || '';
     await db.users.clear();
-    await db.users.add(mappedUser);
+    await db.users.add(mappedUser as never);
   }
 
-  // Replace all plans (clear local, import cloud)
-  if (data.plans) {
+  if (data.plans?.length) {
+    const mapped = data.plans.map(mapPlan);
     await db.plans.clear();
-    for (const plan of data.plans) await db.plans.put(plan as never);
+    for (const item of mapped) await db.plans.put(item as never);
   }
 
-  if (data.planExercises) {
+  if (data.planExercises?.length) {
+    const mapped = data.planExercises.map(mapPlanExercise);
     await db.planExercises.clear();
-    for (const ex of data.planExercises) await db.planExercises.put(ex as never);
+    for (const item of mapped) await db.planExercises.put(item as never);
   }
 
-  if (data.records) {
+  if (data.records?.length) {
+    const mapped = data.records.map(mapRecord);
     await db.records.clear();
-    for (const r of data.records) await db.records.put(r as never);
+    for (const item of mapped) await db.records.put(item as never);
   }
 
-  if (data.recordExercises) {
+  if (data.recordExercises?.length) {
+    const mapped = data.recordExercises.map(mapRecordExercise);
     await db.recordExercises.clear();
-    for (const ex of data.recordExercises) await db.recordExercises.put(ex as never);
+    for (const item of mapped) await db.recordExercises.put(item as never);
   }
 
-  if (data.weightLogs) {
+  if (data.weightLogs?.length) {
+    const mapped = data.weightLogs.map(mapWeightLog);
     await db.weightLogs.clear();
-    for (const log of data.weightLogs) await db.weightLogs.put(log as never);
+    for (const item of mapped) await db.weightLogs.put(item as never);
   }
 
-  if (data.growthLogs) {
+  if (data.growthLogs?.length) {
+    const mapped = data.growthLogs.map(mapGrowthLog);
     await db.growthLogs.clear();
-    for (const log of data.growthLogs) await db.growthLogs.put(log as never);
+    for (const item of mapped) await db.growthLogs.put(item as never);
   }
 }
 
