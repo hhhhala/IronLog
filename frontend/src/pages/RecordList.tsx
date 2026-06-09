@@ -4,6 +4,7 @@ import { getAllRecords, deleteRecord } from '@/db/local-db';
 import type { TrainingRecord } from '@/types';
 import EmptyState from '@/components/shared/EmptyState';
 import { showToast } from '@/components/shared/Toast';
+import { triggerSync } from '@/services/sync';
 
 export default function RecordList() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export default function RecordList() {
     if (!confirm('确定删除这条训练记录吗？')) return;
     try {
       await deleteRecord(id);
+      triggerSync().catch(() => {});
       await loadRecords();
       showToast('记录已删除', 'info');
     } catch (err) {

@@ -4,6 +4,7 @@ import { db, deleteRecord } from '@/db/local-db';
 import type { TrainingRecord } from '@/types';
 import Modal from '@/components/shared/Modal';
 import { showToast } from '@/components/shared/Toast';
+import { triggerSync } from '@/services/sync';
 
 export default function RecordDetail() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +29,7 @@ export default function RecordDetail() {
     if (!confirm('确定删除这条训练记录吗？')) return;
     try {
       await deleteRecord(record.id);
+      triggerSync().catch(() => {});
       showToast('记录已删除', 'info');
       navigate('/records', { replace: true });
     } catch (err) {

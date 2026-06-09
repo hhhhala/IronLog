@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePlanStore } from '@/stores/plan-store';
 import EmptyState from '@/components/shared/EmptyState';
 import { showToast } from '@/components/shared/Toast';
+import { triggerSync } from '@/services/sync';
 
 export default function PlanList() {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ export default function PlanList() {
     e.stopPropagation();
     if (!confirm('确定删除这个训练计划吗？')) return;
     await deletePlan(id);
+    triggerSync().catch(() => {});
     showToast('计划已删除', 'info');
   };
 
