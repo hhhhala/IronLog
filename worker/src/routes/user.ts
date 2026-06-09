@@ -18,6 +18,7 @@ router.post('/', async (c) => {
   const {
     id, nickname, height, weight, goal,
     training_experience, weekly_frequency,
+    deepseek_api_key,
   } = body;
 
   if (!id) return c.json({ success: false, error: 'User id is required' }, 400);
@@ -29,16 +30,19 @@ router.post('/', async (c) => {
       UPDATE users SET
         nickname = ?, height = ?, weight = ?, goal = ?,
         training_experience = ?, weekly_frequency = ?,
+        deepseek_api_key = ?,
         updated_at = datetime('now')
       WHERE id = ?
     `).bind(nickname || '', height || 170, weight || 70, goal || '增肌',
-      training_experience || '新手', weekly_frequency || 3, id).run();
+      training_experience || '新手', weekly_frequency || 3,
+      deepseek_api_key || '', id).run();
   } else {
     await c.env.DB.prepare(`
-      INSERT INTO users (id, nickname, height, weight, goal, training_experience, weekly_frequency)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, nickname, height, weight, goal, training_experience, weekly_frequency, deepseek_api_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(id, nickname || '', height || 170, weight || 70, goal || '增肌',
-      training_experience || '新手', weekly_frequency || 3).run();
+      training_experience || '新手', weekly_frequency || 3,
+      deepseek_api_key || '').run();
   }
 
   const user = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();

@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -9,6 +9,15 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.4.0',
+    date: '2026-06-09',
+    changes: [
+      '云端同步全面升级：训练计划、训练记录、DeepSeek API Key 均可跨设备同步',
+      '修复下载同步时字段映射错误，确保数据完整',
+      '优化：每次功能更新后会弹窗展示更新内容',
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-06-09',

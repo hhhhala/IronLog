@@ -15,15 +15,17 @@ router.post('/', async (c) => {
 
   const counts = { plans: 0, planExercises: 0, records: 0, recordExercises: 0, weightLogs: 0, growthLogs: 0 };
 
-  // 1. Upsert user
+  // 1. Upsert user (including deepseek_api_key for cross-device sync)
   await db.prepare(`
-    INSERT INTO users (id, nickname, height, weight, goal, training_experience, weekly_frequency, updated_at)
-    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))
+    INSERT INTO users (id, nickname, height, weight, goal, training_experience, weekly_frequency, deepseek_api_key, updated_at)
+    VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now'))
     ON CONFLICT(id) DO UPDATE SET
       nickname = ?2, height = ?3, weight = ?4, goal = ?5,
-      training_experience = ?6, weekly_frequency = ?7, updated_at = datetime('now')
+      training_experience = ?6, weekly_frequency = ?7,
+      deepseek_api_key = ?8, updated_at = datetime('now')
   `).bind(userId, user.nickname || '', user.height || 170, user.weight || 70,
-    user.goal || '增肌', user.trainingExperience || '新手', user.weeklyFrequency || 3).run();
+    user.goal || '增肌', user.trainingExperience || '新手', user.weeklyFrequency || 3,
+    user.deepseekApiKey || '').run();
 
   // 2. Clear & re-insert plans for this user
   if (plans && Array.isArray(plans) && plans.length > 0) {

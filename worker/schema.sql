@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   goal TEXT DEFAULT '增肌',
   training_experience TEXT DEFAULT '新手',
   weekly_frequency INTEGER DEFAULT 3,
+  deepseek_api_key TEXT DEFAULT '',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
