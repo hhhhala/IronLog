@@ -145,7 +145,7 @@ export async function saveRecord(record: TrainingRecord): Promise<number> {
 // Helper: delete record
 export async function deleteRecord(recordId: number): Promise<void> {
   await db.recordExercises.where({ recordId }).delete();
-  await db.growthLogs.where({ relatedRecordId: recordId }).delete();
+  await db.growthLogs.filter(g => g.relatedRecordId === recordId).delete();
   await db.records.delete(recordId);
 }
 
