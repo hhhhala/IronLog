@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -10,15 +10,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.2.0',
-    date: '2026-06-01',
+    version: '1.3.0',
+    date: '2026-06-09',
     changes: [
-      '新增 AI 教练页面内置 API Key 设置，无需去个人中心',
-      '新增双向云端同步：上传到 D1 / 从 D1 下载',
-      '新增休息计时双模式：正计时 / 倒计时',
-      '修复训练计划页按钮被导航栏遮挡',
-      '修复云端同步地址错误',
-      '优化 AI 对话体验，支持闲聊和计划生成',
+      '新增中文版 README 及项目说明文档 (CLAUDE.md)',
+      '优化 AI 教练网络请求：浏览器直连 DeepSeek API，不再绕道 Cloudflare Worker 代理',
+      '新增 60 秒超时自动降级：直连失败 → Worker 代理 → 本地计划，三级兜底',
     ],
   },
   {
