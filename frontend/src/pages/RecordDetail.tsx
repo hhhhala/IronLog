@@ -25,9 +25,15 @@ export default function RecordDetail() {
 
   async function handleDelete() {
     if (!record?.id) return;
-    await deleteRecord(record.id);
-    showToast('记录已删除', 'info');
-    navigate('/records', { replace: true });
+    if (!confirm('确定删除这条训练记录吗？')) return;
+    try {
+      await deleteRecord(record.id);
+      showToast('记录已删除', 'info');
+      navigate('/records', { replace: true });
+    } catch (err) {
+      console.error('Delete error:', err);
+      showToast('删除失败', 'error');
+    }
   }
 
   function startEditing() {

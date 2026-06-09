@@ -24,9 +24,14 @@ export default function RecordList() {
   async function handleDelete(id: number, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm('确定删除这条训练记录吗？')) return;
-    await deleteRecord(id);
-    await loadRecords();
-    showToast('记录已删除', 'info');
+    try {
+      await deleteRecord(id);
+      await loadRecords();
+      showToast('记录已删除', 'info');
+    } catch (err) {
+      console.error('Delete error:', err);
+      showToast('删除失败', 'error');
+    }
   }
 
   function formatDuration(seconds: number): string {

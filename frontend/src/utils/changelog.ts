@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -10,12 +10,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.7.0',
+    version: '1.8.0',
     date: '2026-06-09',
     changes: [
-      'AI 教练支持正常聊天对话：闲聊、问答、生成计划三种模式自由切换',
-      '前端将聊天意图传给 Worker，Worker 使用不同的系统提示',
-      '生成计划时自动带上用户资料，聊天时语气自然亲切',
+      '训练模式新增"跳过"按钮，练不动时可以跳到下一组',
+      '训练模式新增"提前结束"按钮，只保存已完成的组',
+      '修复训练记录删除按钮无效的问题',
     ],
   },
   {
