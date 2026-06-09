@@ -262,11 +262,6 @@ export default function AICoach() {
               className={`text-xs px-3 py-1 rounded-lg ${hasApiKey ? 'bg-green-500/20 text-green-400' : 'bg-gray-800 text-gray-400'}`}>
               {hasApiKey ? '🔗' : '🔑'}
             </button>
-            {currentPlan && (
-              <button onClick={handleSavePlan} className="bg-amber-500 text-black text-xs px-3 py-1 rounded-lg font-semibold">
-                💾 保存计划
-              </button>
-            )}
             <button onClick={createNewSession} className="text-gray-400 text-xl p-1">+</button>
           </div>
         </div>
@@ -324,10 +319,23 @@ export default function AICoach() {
           </div>
         )}
         {messages.map(msg => (
-          <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
             <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-amber-500 text-black' : 'bg-[#1a1a1a] text-white'}`}>
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
             </div>
+            {msg.role === 'assistant' && msg.planData && (
+              <button
+                onClick={async () => {
+                  const id = await savePlan(msg.planData!);
+                  await loadPlans();
+                  showToast('计划已保存', 'success');
+                  navigate(`/plans/${id}`);
+                }}
+                className="mt-1.5 ml-1 bg-amber-500/20 text-amber-400 text-xs px-3 py-1.5 rounded-lg font-semibold active:scale-95 transition-transform"
+              >
+                💾 保存此训练计划
+              </button>
+            )}
           </div>
         ))}
         {loading && (
