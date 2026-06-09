@@ -28,7 +28,7 @@ router.post('/', async (c) => {
     user.deepseekApiKey || '').run();
 
   // 2. Clear & re-insert plans for this user
-  if (plans && Array.isArray(plans) && plans.length > 0) {
+  if (plans && Array.isArray(plans)) {
     await db.prepare('DELETE FROM plan_exercises WHERE plan_id IN (SELECT id FROM plans WHERE user_id = ?)').bind(userId).run();
     await db.prepare('DELETE FROM plans WHERE user_id = ?').bind(userId).run();
 
@@ -57,7 +57,7 @@ router.post('/', async (c) => {
   }
 
   // 3. Clear & re-insert records
-  if (records && Array.isArray(records) && records.length > 0) {
+  if (records && Array.isArray(records)) {
     await db.prepare('DELETE FROM record_exercises WHERE record_id IN (SELECT id FROM records WHERE user_id = ?)').bind(userId).run();
     await db.prepare('DELETE FROM growth_logs WHERE user_id = ?').bind(userId).run();
     await db.prepare('DELETE FROM records WHERE user_id = ?').bind(userId).run();
@@ -87,7 +87,7 @@ router.post('/', async (c) => {
   }
 
   // 4. Weight logs
-  if (weightLogs && Array.isArray(weightLogs) && weightLogs.length > 0) {
+  if (weightLogs && Array.isArray(weightLogs)) {
     await db.prepare('DELETE FROM weight_logs WHERE user_id = ?').bind(userId).run();
     for (const log of weightLogs) {
       await db.prepare('INSERT INTO weight_logs (user_id, date, weight, created_at) VALUES (?, ?, ?, ?)')
@@ -97,7 +97,7 @@ router.post('/', async (c) => {
   }
 
   // 5. Growth logs
-  if (growthLogs && Array.isArray(growthLogs) && growthLogs.length > 0) {
+  if (growthLogs && Array.isArray(growthLogs)) {
     await db.prepare('DELETE FROM growth_logs WHERE user_id = ?').bind(userId).run();
     for (const log of growthLogs) {
       await db.prepare('INSERT INTO growth_logs (user_id, date, points, reason, related_record_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')

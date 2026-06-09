@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.9.0';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -10,12 +10,11 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.8.0',
+    version: '1.9.0',
     date: '2026-06-09',
     changes: [
-      '训练模式新增"跳过"按钮，练不动时可以跳到下一组',
-      '训练模式新增"提前结束"按钮，只保存已完成的组',
-      '修复训练记录删除按钮无效的问题',
+      '修复云端同步不删除数据的问题：本地删除后上传云端才会同步删除',
+      'deleteRecord 改为事务操作，防止数据只删一半',
     ],
   },
   {
