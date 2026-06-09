@@ -102,6 +102,58 @@ export default function AICoach() {
     setApiKey(key.trim());
   }
 
+  // 直接调用 DeepSeek API，绕过 Worker 代理（国内访问更快）
+  async function callDeepSeekDirect(prompt: string): Promise<string> {
+    const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
+    const systemPrompt = `你是一个专业的健身教练AI助手，名为IronLog Coach。根据用户的身体数据和训练目标，生成科学的训练计划。
+
+请始终以JSON格式返回训练计划，格式如下：
+{"name":"计划名","goal":"目标","cycleDays":5,"exercises":[{"dayNumber":1,"exerciseName":"动作","sets":4,"reps":8,"targetWeight":0,"restTime":90,"sortOrder":0,"notes":""}]}
+
+重要规则：
+- 动作名称使用中文（如"卧推"、"深蹲"、"引体向上"等）
+- 组数范围3-5组，次数范围6-15次
+- 休息时间60-120秒
+- 每个训练日包含4-6个动作
+- 计划应科学合理
+- 每次回复先简短文字说明，然后提供JSON格式的计划`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const res = await fetch(DEEPSEEK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 4096,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`DeepSeek API ${res.status}: ${errText}`);
+      }
+
+      const data = await res.json();
+      return data.choices?.[0]?.message?.content || '';
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  // 通过 Worker 代理调用（备选方案）
   async function callRemoteAI(prompt: string): Promise<string> {
     const API_BASE = import.meta.env.VITE_API_URL || '';
     const res = await fetch(`${API_BASE}/api/ai/chat`, {
@@ -185,16 +237,20 @@ export default function AICoach() {
       let remote = false;
 
       if (hasApiKey) {
-        try { content = await callRemoteAI(prompt); remote = true; }
-        catch { content = `⚠️ 远程AI失败\n\n${JSON.stringify(generateLocalPlan(user), null, 2)}`; }
+        // 优先直连 DeepSeek（国内访问更快），失败则走 Worker 代理，再失败则本地兜底
+        try { content = await callDeepSeekDirect(prompt); remote = true; }
+        catch {
+          try { content = await callRemoteAI(prompt); remote = true; }
+          catch { content = `⚠️ 远程AI失败，已切换为本地计划\n\n${JSON.stringify(generateLocalPlan(user), null, 2)}`; }
+        }
       } else {
         content = `📦 本地模式\n\n${JSON.stringify(generateLocalPlan(user), null, 2)}`;
       }
 
       const plan = parsePlanFromResponse(content);
       let display = plan
-        ? (remote ? '🔗 远程AI\n\n' : '📦 本地\n\n') + formatPlan(plan)
-        : (remote ? '🔗 ' : '') + (content.length > 1000 ? content.slice(0, 1000) + '...' : content);
+        ? (remote ? '🤖 DeepSeek AI\n\n' : '📦 本地\n\n') + formatPlan(plan)
+        : (remote ? '🤖 ' : '📦 ') + (content.length > 1000 ? content.slice(0, 1000) + '...' : content);
 
       const aiMsg: AIChatMessage = { id: (Date.now() + 1).toString(), role: 'assistant', content: display, planData: plan, timestamp: Date.now() };
       const finalMsgs = [...newMsgs, aiMsg];
