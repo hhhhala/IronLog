@@ -142,11 +142,13 @@ export async function saveRecord(record: TrainingRecord): Promise<number> {
   return recordId!;
 }
 
-// Helper: delete record
+// Helper: delete record (atomic transaction — all or nothing)
 export async function deleteRecord(recordId: number): Promise<void> {
-  await db.recordExercises.where({ recordId }).delete();
-  await db.growthLogs.filter(g => g.relatedRecordId === recordId).delete();
-  await db.records.delete(recordId);
+  await db.transaction('rw', [db.records, db.recordExercises, db.growthLogs], async () => {
+    await db.recordExercises.where({ recordId }).delete();
+    await db.growthLogs.filter(g => g.relatedRecordId === recordId).delete();
+    await db.records.delete(recordId);
+  });
 }
 
 // Helper: get records by date range
