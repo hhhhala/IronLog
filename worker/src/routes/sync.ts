@@ -4,7 +4,7 @@ type Bindings = { DB: D1Database };
 
 const router = new Hono<{ Bindings: Bindings }>();
 
-// Upload: clear cloud data for this user, then insert all local data
+// Upload: clear all cloud data for this user, then re-insert everything
 router.post('/', async (c) => {
   const body = await c.req.json();
   const { user, plans, planExercises, records, recordExercises, weightLogs, growthLogs } = body;
@@ -15,7 +15,7 @@ router.post('/', async (c) => {
 
   const counts = { plans: 0, planExercises: 0, records: 0, recordExercises: 0, weightLogs: 0, growthLogs: 0 };
 
-  // 1. Upsert user (including deepseek_api_key for cross-device sync)
+  // 1. Upsert user
   await db.prepare(`
     INSERT INTO users (id, nickname, height, weight, goal, training_experience, weekly_frequency, deepseek_api_key, updated_at)
     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now'))
@@ -27,83 +27,71 @@ router.post('/', async (c) => {
     user.goal || '增肌', user.trainingExperience || '新手', user.weeklyFrequency || 3,
     user.deepseekApiKey || '').run();
 
-  // 2. Clear & re-insert plans for this user
-  if (plans && Array.isArray(plans)) {
-    await db.prepare('DELETE FROM plan_exercises WHERE plan_id IN (SELECT id FROM plans WHERE user_id = ?)').bind(userId).run();
-    await db.prepare('DELETE FROM plans WHERE user_id = ?').bind(userId).run();
+  // 2. Clear ALL existing data for this user (unconditionally)
+  await db.prepare('DELETE FROM plan_exercises WHERE plan_id IN (SELECT id FROM plans WHERE user_id = ?)').bind(userId).run();
+  await db.prepare('DELETE FROM plans WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM record_exercises WHERE record_id IN (SELECT id FROM records WHERE user_id = ?)').bind(userId).run();
+  await db.prepare('DELETE FROM growth_logs WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM records WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM weight_logs WHERE user_id = ?').bind(userId).run();
 
-    for (const plan of plans) {
+  // 3. Re-insert plans
+  for (const plan of plans || []) {
+    await db.prepare(`
+      INSERT INTO plans (user_id, name, goal, cycle_days, is_active, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).bind(userId, plan.name || '', plan.goal || '', plan.cycleDays || 3, plan.isActive ? 1 : 0, plan.createdAt || '').run();
+
+    const newPlan = await db.prepare('SELECT last_insert_rowid() as id').first();
+    const newPlanId = (newPlan as { id: number }).id;
+    counts.plans++;
+
+    const planExs = (planExercises || []).filter((ex: { planId?: number }) => ex.planId === plan.id);
+    for (const ex of planExs) {
       await db.prepare(`
-        INSERT INTO plans (user_id, name, goal, cycle_days, is_active, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-      `).bind(userId, plan.name || '', plan.goal || '', plan.cycleDays || 3, plan.isActive ? 1 : 0, plan.createdAt || '').run();
-
-      // Get the newly inserted plan's ID
-      const newPlan = await db.prepare('SELECT last_insert_rowid() as id').first();
-      const newPlanId = (newPlan as { id: number }).id;
-      counts.plans++;
-
-      // Insert exercises for this plan (match by old plan ID)
-      const planExs = (planExercises || []).filter((ex: { planId?: number }) => ex.planId === plan.id);
-      for (const ex of planExs) {
-        await db.prepare(`
-          INSERT INTO plan_exercises (plan_id, day_number, exercise_name, sets, reps, target_weight, rest_time, sort_order, notes)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(newPlanId, ex.dayNumber || 1, ex.exerciseName || '', ex.sets || 3,
-          ex.reps || 10, ex.targetWeight || 0, ex.restTime || 90, ex.sortOrder || 0, ex.notes || '').run();
-        counts.planExercises++;
-      }
+        INSERT INTO plan_exercises (plan_id, day_number, exercise_name, sets, reps, target_weight, rest_time, sort_order, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(newPlanId, ex.dayNumber || 1, ex.exerciseName || '', ex.sets || 3,
+        ex.reps || 10, ex.targetWeight || 0, ex.restTime || 90, ex.sortOrder || 0, ex.notes || '').run();
+      counts.planExercises++;
     }
   }
 
-  // 3. Clear & re-insert records
-  if (records && Array.isArray(records)) {
-    await db.prepare('DELETE FROM record_exercises WHERE record_id IN (SELECT id FROM records WHERE user_id = ?)').bind(userId).run();
-    await db.prepare('DELETE FROM growth_logs WHERE user_id = ?').bind(userId).run();
-    await db.prepare('DELETE FROM records WHERE user_id = ?').bind(userId).run();
+  // 4. Re-insert records
+  for (const r of records || []) {
+    await db.prepare(`
+      INSERT INTO records (user_id, plan_id, date, total_duration, total_sets, total_reps, total_volume, estimated_calories, growth_points, notes, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(userId, r.planId || null, r.date || '', r.totalDuration || 0, r.totalSets || 0,
+      r.totalReps || 0, r.totalVolume || 0, r.estimatedCalories || 0,
+      r.growthPoints || 0, r.notes || '', r.createdAt || '').run();
 
-    for (const r of records) {
+    const newRecord = await db.prepare('SELECT last_insert_rowid() as id').first();
+    const newRecordId = (newRecord as { id: number }).id;
+    counts.records++;
+
+    const recExs = (recordExercises || []).filter((ex: { recordId?: number }) => ex.recordId === r.id);
+    for (const ex of recExs) {
       await db.prepare(`
-        INSERT INTO records (user_id, plan_id, date, total_duration, total_sets, total_reps, total_volume, estimated_calories, growth_points, notes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(userId, r.planId || null, r.date || '', r.totalDuration || 0, r.totalSets || 0,
-        r.totalReps || 0, r.totalVolume || 0, r.estimatedCalories || 0,
-        r.growthPoints || 0, r.notes || '', r.createdAt || '').run();
-
-      const newRecord = await db.prepare('SELECT last_insert_rowid() as id').first();
-      const newRecordId = (newRecord as { id: number }).id;
-      counts.records++;
-
-      // Insert exercises for this record
-      const recExs = (recordExercises || []).filter((ex: { recordId?: number }) => ex.recordId === r.id);
-      for (const ex of recExs) {
-        await db.prepare(`
-          INSERT INTO record_exercises (record_id, exercise_name, set_number, weight, reps, is_pr)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(newRecordId, ex.exerciseName || '', ex.setNumber || 1, ex.weight || 0, ex.reps || 0, ex.isPR ? 1 : 0).run();
-        counts.recordExercises++;
-      }
+        INSERT INTO record_exercises (record_id, exercise_name, set_number, weight, reps, is_pr)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(newRecordId, ex.exerciseName || '', ex.setNumber || 1, ex.weight || 0, ex.reps || 0, ex.isPR ? 1 : 0).run();
+      counts.recordExercises++;
     }
   }
 
-  // 4. Weight logs
-  if (weightLogs && Array.isArray(weightLogs)) {
-    await db.prepare('DELETE FROM weight_logs WHERE user_id = ?').bind(userId).run();
-    for (const log of weightLogs) {
-      await db.prepare('INSERT INTO weight_logs (user_id, date, weight, created_at) VALUES (?, ?, ?, ?)')
-        .bind(userId, log.date || '', log.weight || 0, log.createdAt || '').run();
-      counts.weightLogs++;
-    }
+  // 5. Re-insert weight logs
+  for (const log of weightLogs || []) {
+    await db.prepare('INSERT INTO weight_logs (user_id, date, weight, created_at) VALUES (?, ?, ?, ?)')
+      .bind(userId, log.date || '', log.weight || 0, log.createdAt || '').run();
+    counts.weightLogs++;
   }
 
-  // 5. Growth logs
-  if (growthLogs && Array.isArray(growthLogs)) {
-    await db.prepare('DELETE FROM growth_logs WHERE user_id = ?').bind(userId).run();
-    for (const log of growthLogs) {
-      await db.prepare('INSERT INTO growth_logs (user_id, date, points, reason, related_record_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-        .bind(userId, log.date || '', log.points || 0, log.reason || '', log.relatedRecordId || null, log.createdAt || '').run();
-      counts.growthLogs++;
-    }
+  // 6. Re-insert growth logs
+  for (const log of growthLogs || []) {
+    await db.prepare('INSERT INTO growth_logs (user_id, date, points, reason, related_record_id, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(userId, log.date || '', log.points || 0, log.reason || '', log.relatedRecordId || null, log.createdAt || '').run();
+    counts.growthLogs++;
   }
 
   return c.json({
