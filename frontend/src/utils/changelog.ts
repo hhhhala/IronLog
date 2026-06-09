@@ -1,5 +1,5 @@
 /** Current app version — bump this on each release */
-export const APP_VERSION = '1.6.0';
+export const APP_VERSION = '1.6.1';
 
 /** Changelog entries — newest first. Shown in update announcement. */
 export interface ChangelogEntry {
@@ -10,11 +10,11 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.6.0',
+    version: '1.6.1',
     date: '2026-06-09',
     changes: [
-      '修复云端下载后训练计划和记录不显示的问题（snake_case → camelCase 字段映射）',
-      '修复云端下载覆盖本地 API Key 的问题',
+      'AI 教练支持正常聊天对话，不再只能输出训练计划',
+      '优化 Worker 系统提示，区分"生成计划"和"日常闲聊"两种模式',
     ],
   },
   {
