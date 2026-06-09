@@ -10,7 +10,7 @@ import Modal from '@/components/shared/Modal';
 export default function ActiveTraining() {
   const { planId, day } = useParams<{ planId: string; day: string }>();
   const navigate = useNavigate();
-  const { initTraining, logSet, finishWorkout, startRest, skipRest, reset } = useTraining();
+  const { initTraining, logSet, skipSet, finishWorkout, startRest, skipRest, reset } = useTraining();
   const { session, elapsedSeconds } = useTrainingStore();
   const { user } = useUserStore();
   const [weightInput, setWeightInput] = useState('');
@@ -128,6 +128,15 @@ export default function ActiveTraining() {
           <p className="text-gray-500 text-xs">{completedSets}/{totalSets} 组完成</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => {
+              if (!confirm('确定提前结束训练？已完成的组会被保存。')) return;
+              handleComplete();
+            }}
+            className="text-xs text-gray-400 hover:text-amber-400 px-2"
+          >
+            提前结束
+          </button>
           <button
             onClick={() => setVibrateMode(!vibrateMode)}
             className={`text-sm ${vibrateMode ? 'text-amber-400' : 'text-gray-600'}`}
@@ -260,12 +269,20 @@ export default function ActiveTraining() {
                     <p className="text-gray-600 text-xs text-center mt-1">次</p>
                   </div>
                 </div>
-                <button
-                  onClick={handleLogSet}
-                  className="w-full bg-amber-500 text-black font-bold py-3 rounded-xl mt-3 active:scale-[0.98] transition-transform"
-                >
-                  完成这组 ✓
-                </button>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={handleLogSet}
+                    className="flex-1 bg-amber-500 text-black font-bold py-3 rounded-xl active:scale-[0.98] transition-transform"
+                  >
+                    完成这组 ✓
+                  </button>
+                  <button
+                    onClick={() => skipSet()}
+                    className="bg-gray-800 text-gray-400 px-4 py-3 rounded-xl text-sm active:scale-95 transition-transform"
+                  >
+                    跳过
+                  </button>
+                </div>
               </div>
             </div>
 

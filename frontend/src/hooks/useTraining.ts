@@ -9,7 +9,7 @@ import { useUserStore } from '@/stores/user-store';
 import { todayStr, calculateStreak } from '@/utils/streak';
 
 export function useTraining() {
-  const { session, elapsedSeconds, startSession, completeSet, startRest, skipRest, completeSession, reset } =
+  const { session, elapsedSeconds, startSession, completeSet, skipSet, startRest, skipRest, completeSession, reset } =
     useTrainingStore();
   const { activePlan } = usePlanStore();
   const { user } = useUserStore();
@@ -77,7 +77,8 @@ export function useTraining() {
     const recordExercises: RecordExercise[] = [];
     s.session.exercises.forEach((ex) => {
       ex.sets.forEach((set, i) => {
-        if (set.completed) {
+        // Filter out skipped sets (logged as 0kg × 0reps)
+        if (set.completed && (set.weight > 0 || set.reps > 0)) {
           recordExercises.push({
             exerciseName: ex.name,
             setNumber: i + 1,
@@ -140,6 +141,7 @@ export function useTraining() {
     elapsedSeconds,
     initTraining,
     logSet,
+    skipSet,
     finishWorkout,
     startRest,
     skipRest,

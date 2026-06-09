@@ -9,6 +9,7 @@ interface TrainingState {
   startSession: (session: TrainingSession) => void;
   updateSession: (updates: Partial<TrainingSession>) => void;
   completeSet: (weight: number, reps: number) => void;
+  skipSet: () => void;
   startRest: () => void;
   skipRest: () => void;
   nextExercise: () => void;
@@ -71,6 +72,39 @@ export const useTrainingStore = create<TrainingState>((set, get) => ({
     }
 
     // Move to rest phase
+    set({
+      session: {
+        ...session,
+        exercises: [...session.exercises],
+        phase: 'resting',
+        currentExerciseIndex: next.exerciseIndex,
+        currentSetNumber: next.setNumber,
+        restStartTime: Date.now(),
+        restDuration: ex.restTime,
+      },
+    });
+  },
+
+  skipSet: () => {
+    const session = get().session;
+    if (!session || session.phase === 'completed') return;
+
+    const ex = session.exercises[session.currentExerciseIndex];
+    // Mark set as skipped (0 weight, 0 reps) and move on
+    ex.sets[session.currentSetNumber] = { weight: 0, reps: 0, completed: true };
+
+    const next = findNextIncomplete(session);
+    if (!next) {
+      set({
+        session: {
+          ...session,
+          phase: 'completed',
+          exercises: [...session.exercises],
+        },
+      });
+      return;
+    }
+
     set({
       session: {
         ...session,
