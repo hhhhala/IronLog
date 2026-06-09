@@ -7,7 +7,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "db:init": "wrangler d1 execute ironlog-db --file=schema.sql",
-    "db:local": "wrangler d1 execute ironlog-db --file=schema.sql --local"
+    "db:local": "wrangler d1 execute ironlog-db --file=schema.sql --local",
+    "db:migrate": "wrangler d1 execute ironlog-db --file=migrations/001_add_deepseek_api_key.sql",
+    "db:migrate:local": "wrangler d1 execute ironlog-db --file=migrations/001_add_deepseek_api_key.sql --local"
   },
   "dependencies": {
     "hono": "^4.7.7"

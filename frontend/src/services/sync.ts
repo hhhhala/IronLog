@@ -41,6 +41,10 @@ export async function pullFromCloud(): Promise<void> {
   // Replace local user with cloud user (ensures same ID across devices)
   if (data.user) {
     const cloudUser = data.user as Record<string, unknown>;
+    // Preserve local API key if cloud doesn't have one (e.g. before migration)
+    const localUser = await db.users.toArray().then(a => a[0]);
+    const localApiKey = (localUser as Record<string, unknown>)?.deepseekApiKey as string || '';
+
     // Map snake_case DB fields to camelCase TS types
     const mappedUser = {
       id: cloudUser.id as string,
@@ -50,7 +54,7 @@ export async function pullFromCloud(): Promise<void> {
       goal: cloudUser.goal as string || '增肌',
       trainingExperience: cloudUser.training_experience as string || '新手',
       weeklyFrequency: cloudUser.weekly_frequency as number || 3,
-      deepseekApiKey: (cloudUser.deepseek_api_key as string) || '',
+      deepseekApiKey: (cloudUser.deepseek_api_key as string) || localApiKey || '',
       updatedAt: cloudUser.updated_at as string || new Date().toISOString(),
     } as never;
     await db.users.clear();
