@@ -6,12 +6,13 @@ const router = new Hono<{ Bindings: Bindings }>();
 
 // Upload: clear all cloud data for this user, then re-insert everything
 router.post('/', async (c) => {
-  const body = await c.req.json();
-  const { user, plans, planExercises, records, recordExercises, weightLogs, growthLogs } = body;
+  try {
+    const body = await c.req.json();
+    const { user, plans, planExercises, records, recordExercises, weightLogs, growthLogs } = body;
 
-  const db = c.env.DB;
-  let userId = user?.id as string;
-  if (!userId) return c.json({ success: false, error: 'No user data' }, 400);
+    const db = c.env.DB;
+    let userId = user?.id as string;
+    if (!userId) return c.json({ success: false, error: 'No user data' }, 400);
 
   const counts = { plans: 0, planExercises: 0, records: 0, recordExercises: 0, weightLogs: 0, growthLogs: 0 };
 
@@ -98,6 +99,11 @@ router.post('/', async (c) => {
     success: true,
     data: { syncedAt: new Date().toISOString(), counts },
   });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Sync error:', message);
+    return c.json({ success: false, error: message }, 500);
+  }
 });
 
 // Download all cloud data (device-agnostic)
