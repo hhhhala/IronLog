@@ -101,14 +101,14 @@ export default function AICoach() {
     setApiKey(key.trim());
   }
 
-  // 通过 Worker 代理调用 DeepSeek API（唯一路径）
-  async function callAI(userText: string, isPlanRequest: boolean): Promise<string> {
+  // 通过 Worker 代理调用 DeepSeek API
+  async function callAI(userText: string): Promise<string> {
     const API_BASE = 'https://ironlog-worker.hhhhala7777777.workers.dev';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      // 发送完整对话历史，AI 才能记住上下文（如"徒手训练"）
+      // 发送完整对话历史，AI 自己判断是聊天还是生成计划
       const history = messages.map(m => ({ role: m.role, content: m.content }));
       const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
@@ -117,7 +117,6 @@ export default function AICoach() {
           messages: [...history, { role: 'user', content: userText }],
           userProfile: user,
           apiKey: apiKey.trim(),
-          isPlanRequest,
         }),
         signal: controller.signal,
       });
@@ -131,10 +130,6 @@ export default function AICoach() {
     } finally {
       clearTimeout(timeout);
     }
-  }
-
-  function isPlanRequest(text: string): boolean {
-    return /计划|训练|生成|创建|增肌|减脂|动作|组|次|修改|改成|增加|删除/.test(text);
   }
 
   function parsePlanFromResponse(content: string): TrainingPlan | null {
@@ -202,7 +197,7 @@ export default function AICoach() {
 
       let content: string;
       try {
-        content = await callAI(text, isPlanRequest(text));
+        content = await callAI(text);
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : '未知错误';
         setMessages([...newMsgs, {

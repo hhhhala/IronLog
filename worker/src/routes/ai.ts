@@ -8,9 +8,10 @@ type Bindings = {
 
 const router = new Hono<{ Bindings: Bindings }>();
 
-const PLAN_PROMPT = `你是一个专业的健身教练AI助手，名为IronLog Coach。根据用户的身体数据和训练目标，生成科学的训练计划。
+const SYSTEM_PROMPT = `你是一个友好的健身教练AI助手，名为IronLog Coach。
 
-请按以下JSON格式返回训练计划：
+- 用户找你聊天、问健身问题、要建议 → 用中文友好回复，自然亲切
+- 用户让你生成训练计划 → 先文字说明，然后按下面JSON格式输出：
 {
   "name": "计划名称",
   "goal": "训练目标",
@@ -29,25 +30,16 @@ const PLAN_PROMPT = `你是一个专业的健身教练AI助手，名为IronLog C
   ]
 }
 
-重要规则：
-- 动作名称使用中文（如"卧推"、"深蹲"、"引体向上"等）
-- 组数范围3-5组，次数范围6-15次
-- 休息时间60-120秒
-- 每个训练日包含4-6个动作
-- 先简短文字说明，然后提供JSON格式的计划`;
-
-const CHAT_PROMPT = `你是一个友好的健身教练AI助手，名为IronLog Coach。你的职责是回答健身相关问题、提供训练建议，以及与用户日常聊天。
-
-回复要求：
-- 用中文友好回复
-- 语气亲切自然，像个真实的教练
-- 如果用户问健身相关问题，给出专业建议
-- 如果用户闲聊，就正常聊天
-- 不需要输出JSON，除非用户明确要求生成计划`;
+生成计划规则：
+- 动作名称用中文（卧推、深蹲、引体向上等）
+- 组数3-5组，次数6-15次
+- 休息60-120秒
+- 每个训练日4-6个动作
+- 记住对话中用户说过的限制条件（如"在家"、"徒手"、"有伤"等）`;
 
 router.post('/chat', async (c) => {
   const body = await c.req.json();
-  const { messages, userProfile, apiKey: requestApiKey, isPlanRequest } = body;
+  const { messages, userProfile, apiKey: requestApiKey } = body;
 
   if (!messages || !Array.isArray(messages)) {
     return c.json({ success: false, error: 'messages array required' }, 400);
@@ -66,15 +58,15 @@ router.post('/chat', async (c) => {
   }
 
   try {
-    // Build messages: filter out frontend system messages, add profile context for plans
+    // 总是带上用户资料帮助AI，移除繁琐的模式切换
     const userMessages = messages.filter((m: { role: string }) => m.role !== 'system');
-    if (isPlanRequest && userProfile) {
+    if (userProfile) {
       const profileText = `用户资料：身高${userProfile.height}cm 体重${userProfile.weight}kg 目标${userProfile.goal} 经验${userProfile.trainingExperience} 每周${userProfile.weeklyFrequency}天`;
       const last = userMessages.length - 1;
       if (last >= 0) {
         userMessages[last] = {
           ...userMessages[last],
-          content: `${profileText}\n\n用户说："${userMessages[last]?.content || ''}"`,
+          content: `${profileText}\n\n${userMessages[last]?.content || ''}`,
         };
       }
     }
@@ -88,10 +80,10 @@ router.post('/chat', async (c) => {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: isPlanRequest ? PLAN_PROMPT : CHAT_PROMPT },
+          { role: 'system', content: SYSTEM_PROMPT },
           ...userMessages,
         ],
-        temperature: isPlanRequest ? 0.7 : 0.9,
+        temperature: 0.8,
         max_tokens: 4096,
       }),
     });
