@@ -70,10 +70,13 @@ router.post('/chat', async (c) => {
     const userMessages = messages.filter((m: { role: string }) => m.role !== 'system');
     if (isPlanRequest && userProfile) {
       const profileText = `用户资料：身高${userProfile.height}cm 体重${userProfile.weight}kg 目标${userProfile.goal} 经验${userProfile.trainingExperience} 每周${userProfile.weeklyFrequency}天`;
-      userMessages[0] = {
-        ...userMessages[0],
-        content: `${profileText}\n\n用户说："${userMessages[0]?.content || ''}"`,
-      };
+      const last = userMessages.length - 1;
+      if (last >= 0) {
+        userMessages[last] = {
+          ...userMessages[last],
+          content: `${profileText}\n\n用户说："${userMessages[last]?.content || ''}"`,
+        };
+      }
     }
 
     const response = await fetch(apiUrl, {

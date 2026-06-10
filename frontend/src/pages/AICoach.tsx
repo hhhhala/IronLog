@@ -108,11 +108,13 @@ export default function AICoach() {
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
+      // 发送完整对话历史，AI 才能记住上下文（如"徒手训练"）
+      const history = messages.map(m => ({ role: m.role, content: m.content }));
       const res = await fetch(`${API_BASE}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: userText }],
+          messages: [...history, { role: 'user', content: userText }],
           userProfile: user,
           apiKey: apiKey.trim(),
           isPlanRequest,
