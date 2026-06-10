@@ -103,7 +103,7 @@ export default function AICoach() {
 
   // 通过 Worker 代理调用 DeepSeek API（唯一路径）
   async function callAI(userText: string, isPlanRequest: boolean): Promise<string> {
-    const API_BASE = import.meta.env.VITE_API_URL || '';
+    const API_BASE = 'https://ironlog-worker.hhhhala7777777.workers.dev';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60000);
 

@@ -1,7 +1,7 @@
 import { useSyncStore } from '@/stores/sync-store';
 import { db } from '@/db/local-db';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = 'https://ironlog-worker.hhhhala7777777.workers.dev';
 
 /** Upload all local data to cloud (D1) */
 export async function pushToCloud(): Promise<void> {

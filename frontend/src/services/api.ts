@@ -1,5 +1,5 @@
 // API client for Cloudflare Worker backend
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = 'https://ironlog-worker.hhhhala7777777.workers.dev';
 
 interface ApiResponse<T> {
   success: boolean;
