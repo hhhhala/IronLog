@@ -28,12 +28,12 @@ router.post('/', async (c) => {
     user.goal || '增肌', user.trainingExperience || '新手', user.weeklyFrequency || 3,
     user.deepseekApiKey || '').run();
 
-  // 2. Clear ALL existing data for this user (unconditionally)
+  // 2. Clear ALL existing data for this user (FK-safe order: children first)
   await db.prepare('DELETE FROM plan_exercises WHERE plan_id IN (SELECT id FROM plans WHERE user_id = ?)').bind(userId).run();
-  await db.prepare('DELETE FROM plans WHERE user_id = ?').bind(userId).run();
   await db.prepare('DELETE FROM record_exercises WHERE record_id IN (SELECT id FROM records WHERE user_id = ?)').bind(userId).run();
   await db.prepare('DELETE FROM growth_logs WHERE user_id = ?').bind(userId).run();
   await db.prepare('DELETE FROM records WHERE user_id = ?').bind(userId).run();
+  await db.prepare('DELETE FROM plans WHERE user_id = ?').bind(userId).run();
   await db.prepare('DELETE FROM weight_logs WHERE user_id = ?').bind(userId).run();
 
   // 3. Re-insert plans
